@@ -1,0 +1,4898 @@
+{
+  "version": 1,
+  "tools": [
+    {
+      "description": "Approve or reject waiting deployments to the given environments, with a comment.",
+      "externalAgents": true,
+      "group": "Actions",
+      "method": "POST",
+      "name": "approve_deployment",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/actions/runs/{id}/pending_deployments",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/actions/runs/{id}/pending_deployments",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "comment": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "environment_ids": {
+                "items": {
+                  "maximum": 2147483647,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              "state": {
+                "enum": [
+                  "approved",
+                  "rejected"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "environment_ids",
+              "state"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read one artifact's name, size, expiry, and the run that produced it.",
+      "externalAgents": true,
+      "group": "Actions",
+      "method": "GET",
+      "name": "artifact_metadata",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/actions/artifacts/{id}",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Cancel a queued or running workflow run.",
+      "externalAgents": true,
+      "group": "Actions",
+      "method": "POST",
+      "name": "cancel_workflow",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/actions/runs/{id}/cancel",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/actions/runs/{id}",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List the check runs for a commit SHA with status and conclusion.",
+      "externalAgents": true,
+      "group": "Actions",
+      "method": "GET",
+      "name": "check_run_status",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/commits/{sha}/check-runs",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "sha": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "required": [
+          "sha"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete a build artifact by ID.",
+      "externalAgents": true,
+      "group": "Actions",
+      "method": "DELETE",
+      "name": "delete_artifact",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/actions/artifacts/{id}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/actions/artifacts/{id}",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Start a workflow that has a workflow_dispatch trigger on a ref, with optional inputs.",
+      "externalAgents": true,
+      "group": "Actions",
+      "method": "POST",
+      "name": "dispatch_workflow",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/actions/workflows/{id}/dispatches",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/actions/workflows/{id}",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "inputs": {
+                "additionalProperties": true,
+                "properties": {},
+                "type": "object"
+              },
+              "ref": {
+                "maxLength": 200,
+                "type": "string"
+              }
+            },
+            "required": [
+              "ref"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Download a selected artifact into encrypted 1-MiB chunks; maximum 50 MiB.",
+      "externalAgents": true,
+      "group": "Actions",
+      "method": "GET",
+      "name": "download_artifact",
+      "nativeOnly": false,
+      "path": "asset-download",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List the repository's build artifacts with size and expiry.",
+      "externalAgents": true,
+      "group": "Actions",
+      "method": "GET",
+      "name": "list_artifacts",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/actions/artifacts",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List the repository's workflows and whether each is active.",
+      "externalAgents": true,
+      "group": "Actions",
+      "method": "GET",
+      "name": "list_workflows",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/actions/workflows",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List the deployments in a run that are waiting for environment approval.",
+      "externalAgents": true,
+      "group": "Actions",
+      "method": "GET",
+      "name": "pending_deployments",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/actions/runs/{id}/pending_deployments",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read one workflow run: trigger, commit, status, conclusion, and timing.",
+      "externalAgents": true,
+      "group": "Actions",
+      "method": "GET",
+      "name": "read_workflow_run",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/actions/runs/{id}",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Re-run every job in a workflow run.",
+      "externalAgents": true,
+      "group": "Actions",
+      "method": "POST",
+      "name": "rerun_workflow",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/actions/runs/{id}/rerun",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/actions/runs/{id}",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List a workflow run's jobs and steps with status and conclusion.",
+      "externalAgents": true,
+      "group": "Actions",
+      "method": "GET",
+      "name": "workflow_jobs",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/actions/runs/{id}/jobs",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read the first 64 KiB of a job's log, with credentials masked.",
+      "externalAgents": true,
+      "group": "Actions",
+      "method": "GET",
+      "name": "workflow_logs",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/actions/jobs/{id}/logs",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List recent workflow runs on the selected branch with status and conclusion.",
+      "externalAgents": true,
+      "group": "Actions",
+      "method": "GET",
+      "name": "workflow_status",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/actions/runs",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List recent repository events such as pushes, pull requests, issues, and releases.",
+      "externalAgents": true,
+      "group": "Activity",
+      "method": "GET",
+      "name": "activity",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/events",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read a branch's protection: required reviews, status checks, and restrictions.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "GET",
+      "name": "branch_protection",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/branches/{branch}/protection",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "branch": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "branch"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List collaborators and their permission levels.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "GET",
+      "name": "collaborators",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/collaborators",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a repository on your account with a name, visibility, and optional README, .gitignore, and license.",
+      "externalAgents": false,
+      "group": "Administration",
+      "method": "POST",
+      "name": "create_repository",
+      "nativeOnly": false,
+      "path": "user/repos",
+      "permission": "admin",
+      "reviewPath": "user/repos",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "auto_init": {
+                "type": "boolean"
+              },
+              "description": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "gitignore_template": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "license_template": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "private": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "name",
+              "private"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a branch or tag ruleset with targets, rules, enforcement, and bypass actors.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "POST",
+      "name": "create_ruleset",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/rulesets",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/rulesets",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "bypass_actors": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "actor_id": {
+                      "maximum": 2147483647,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "actor_type": {
+                      "enum": [
+                        "Integration",
+                        "OrganizationAdmin",
+                        "RepositoryRole",
+                        "Team"
+                      ],
+                      "type": "string"
+                    },
+                    "bypass_mode": {
+                      "enum": [
+                        "always",
+                        "pull_request"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "actor_type",
+                    "bypass_mode"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              "conditions": {
+                "additionalProperties": false,
+                "properties": {
+                  "ref_name": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "exclude": {
+                        "items": {
+                          "maxLength": 200,
+                          "type": "string"
+                        },
+                        "maxItems": 100,
+                        "type": "array"
+                      },
+                      "include": {
+                        "items": {
+                          "maxLength": 200,
+                          "type": "string"
+                        },
+                        "maxItems": 100,
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "include",
+                      "exclude"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              },
+              "enforcement": {
+                "enum": [
+                  "disabled",
+                  "active",
+                  "evaluate"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "rules": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "parameters": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "dismiss_stale_reviews_on_push": {
+                          "type": "boolean"
+                        },
+                        "require_code_owner_review": {
+                          "type": "boolean"
+                        },
+                        "require_last_push_approval": {
+                          "type": "boolean"
+                        },
+                        "required_approving_review_count": {
+                          "maximum": 6,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "required_deployment_environments": {
+                          "items": {
+                            "maxLength": 200,
+                            "type": "string"
+                          },
+                          "maxItems": 100,
+                          "type": "array"
+                        },
+                        "required_review_thread_resolution": {
+                          "type": "boolean"
+                        },
+                        "required_status_checks": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "context": {
+                                "maxLength": 200,
+                                "type": "string"
+                              },
+                              "integration_id": {
+                                "maximum": 2147483647,
+                                "minimum": 1,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "context"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 100,
+                          "type": "array"
+                        },
+                        "strict_required_status_checks_policy": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [],
+                      "type": "object"
+                    },
+                    "type": {
+                      "enum": [
+                        "creation",
+                        "update",
+                        "deletion",
+                        "required_linear_history",
+                        "required_signatures",
+                        "non_fast_forward",
+                        "pull_request",
+                        "required_status_checks",
+                        "required_deployments"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              "target": {
+                "enum": [
+                  "branch",
+                  "tag"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "target",
+              "enforcement",
+              "rules"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Add a webhook that posts selected events to an HTTPS URL.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "POST",
+      "name": "create_webhook",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/hooks",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/hooks",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "active": {
+                "type": "boolean"
+              },
+              "config": {
+                "additionalProperties": false,
+                "properties": {
+                  "content_type": {
+                    "enum": [
+                      "json",
+                      "form"
+                    ],
+                    "type": "string"
+                  },
+                  "insecure_ssl": {
+                    "enum": [
+                      "0"
+                    ],
+                    "type": "string"
+                  },
+                  "url": {
+                    "maxLength": 4096,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url",
+                  "insecure_ssl"
+                ],
+                "type": "object"
+              },
+              "events": {
+                "items": {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              "name": {
+                "enum": [
+                  "web"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "config"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Remove all protection from a branch.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "DELETE",
+      "name": "delete_branch_protection",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/branches/{branch}/protection",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/branches/{branch}/protection",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "branch": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "branch"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete a deployment environment, including its secrets and protection rules.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "DELETE",
+      "name": "delete_environment",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/environments/{environment}",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/environments/{environment}",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "environment": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "environment"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Permanently delete this repository with its issues, pull requests, and releases.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "DELETE",
+      "name": "delete_repository",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}",
+      "risk": "destructive",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete a ruleset.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "DELETE",
+      "name": "delete_ruleset",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/rulesets/{id}",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/rulesets/{id}",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete a webhook.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "DELETE",
+      "name": "delete_webhook",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/hooks/{id}",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/hooks/{id}",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Fork this repository to your account or an organization.",
+      "externalAgents": false,
+      "group": "Administration",
+      "method": "POST",
+      "name": "fork_repository",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/forks",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/forks",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "default_branch_only": {
+                "type": "boolean"
+              },
+              "name": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "organization": {
+                "maxLength": 200,
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List deployment environments and their protection rules.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "GET",
+      "name": "list_environments",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/environments",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List the repository's branch and tag rulesets.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "GET",
+      "name": "list_rulesets",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/rulesets",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List webhooks with their events and delivery URLs.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "GET",
+      "name": "list_webhooks",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/hooks",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Remove a collaborator's access to the repository.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "DELETE",
+      "name": "remove_collaborator",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/collaborators/{username}",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/collaborators",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "username": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Change the name, description, visibility, default branch, features, or merge options.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "PATCH",
+      "name": "repository_settings",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "allow_merge_commit": {
+                "type": "boolean"
+              },
+              "allow_rebase_merge": {
+                "type": "boolean"
+              },
+              "allow_squash_merge": {
+                "type": "boolean"
+              },
+              "archived": {
+                "type": "boolean"
+              },
+              "default_branch": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "delete_branch_on_merge": {
+                "type": "boolean"
+              },
+              "description": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "has_issues": {
+                "type": "boolean"
+              },
+              "has_projects": {
+                "type": "boolean"
+              },
+              "has_wiki": {
+                "type": "boolean"
+              },
+              "homepage": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "private": {
+                "type": "boolean"
+              },
+              "visibility": {
+                "enum": [
+                  "public",
+                  "private"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Set a branch's required reviews and checks, push restrictions, and force-push and deletion rules.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "PUT",
+      "name": "set_branch_protection",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/branches/{branch}/protection",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/branches/{branch}",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "allow_deletions": {
+                "type": "boolean"
+              },
+              "allow_force_pushes": {
+                "type": "boolean"
+              },
+              "enforce_admins": {
+                "type": "boolean"
+              },
+              "lock_branch": {
+                "type": "boolean"
+              },
+              "required_conversation_resolution": {
+                "type": "boolean"
+              },
+              "required_linear_history": {
+                "type": "boolean"
+              },
+              "required_pull_request_reviews": {
+                "additionalProperties": false,
+                "properties": {
+                  "dismiss_stale_reviews": {
+                    "type": "boolean"
+                  },
+                  "require_code_owner_reviews": {
+                    "type": "boolean"
+                  },
+                  "required_approving_review_count": {
+                    "maximum": 6,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              },
+              "required_status_checks": {
+                "additionalProperties": false,
+                "properties": {
+                  "contexts": {
+                    "items": {
+                      "maxLength": 200,
+                      "type": "string"
+                    },
+                    "maxItems": 100,
+                    "type": "array"
+                  },
+                  "strict": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "strict",
+                  "contexts"
+                ],
+                "type": "object"
+              },
+              "restrictions": {
+                "additionalProperties": false,
+                "properties": {
+                  "apps": {
+                    "items": {
+                      "maxLength": 200,
+                      "type": "string"
+                    },
+                    "maxItems": 100,
+                    "type": "array"
+                  },
+                  "teams": {
+                    "items": {
+                      "maxLength": 200,
+                      "type": "string"
+                    },
+                    "maxItems": 100,
+                    "type": "array"
+                  },
+                  "users": {
+                    "items": {
+                      "maxLength": 200,
+                      "type": "string"
+                    },
+                    "maxItems": 100,
+                    "type": "array"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              }
+            },
+            "required": [
+              "required_status_checks",
+              "enforce_admins",
+              "required_pull_request_reviews",
+              "restrictions"
+            ],
+            "type": "object"
+          },
+          "branch": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "branch",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Invite a user or change their permission: pull, triage, push, maintain, or admin.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "PUT",
+      "name": "set_collaborator",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/collaborators/{username}",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/collaborators",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "permission": {
+                "enum": [
+                  "pull",
+                  "triage",
+                  "push",
+                  "maintain",
+                  "admin"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "permission"
+            ],
+            "type": "object"
+          },
+          "username": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create or update an environment's wait timer, required reviewers, and self-review rule.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "PUT",
+      "name": "set_environment",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/environments/{environment}",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/environments",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "prevent_self_review": {
+                "type": "boolean"
+              },
+              "reviewers": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "maximum": 2147483647,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "type": {
+                      "enum": [
+                        "User",
+                        "Team"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              "wait_timer": {
+                "maximum": 43200,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "environment": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "environment",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Transfer this repository to another user or organization.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "POST",
+      "name": "transfer_repository",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/transfer",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}",
+      "risk": "destructive",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "new_name": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "new_owner": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "team_ids": {
+                "items": {
+                  "maximum": 2147483647,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "maxItems": 100,
+                "type": "array"
+              }
+            },
+            "required": [
+              "new_owner"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Replace a ruleset's targets, rules, enforcement, or bypass actors.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "PUT",
+      "name": "update_ruleset",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/rulesets/{id}",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/rulesets/{id}",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "bypass_actors": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "actor_id": {
+                      "maximum": 2147483647,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "actor_type": {
+                      "enum": [
+                        "Integration",
+                        "OrganizationAdmin",
+                        "RepositoryRole",
+                        "Team"
+                      ],
+                      "type": "string"
+                    },
+                    "bypass_mode": {
+                      "enum": [
+                        "always",
+                        "pull_request"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "actor_type",
+                    "bypass_mode"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              "conditions": {
+                "additionalProperties": false,
+                "properties": {
+                  "ref_name": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "exclude": {
+                        "items": {
+                          "maxLength": 200,
+                          "type": "string"
+                        },
+                        "maxItems": 100,
+                        "type": "array"
+                      },
+                      "include": {
+                        "items": {
+                          "maxLength": 200,
+                          "type": "string"
+                        },
+                        "maxItems": 100,
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "include",
+                      "exclude"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              },
+              "enforcement": {
+                "enum": [
+                  "disabled",
+                  "active",
+                  "evaluate"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "rules": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "parameters": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "dismiss_stale_reviews_on_push": {
+                          "type": "boolean"
+                        },
+                        "require_code_owner_review": {
+                          "type": "boolean"
+                        },
+                        "require_last_push_approval": {
+                          "type": "boolean"
+                        },
+                        "required_approving_review_count": {
+                          "maximum": 6,
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "required_deployment_environments": {
+                          "items": {
+                            "maxLength": 200,
+                            "type": "string"
+                          },
+                          "maxItems": 100,
+                          "type": "array"
+                        },
+                        "required_review_thread_resolution": {
+                          "type": "boolean"
+                        },
+                        "required_status_checks": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "context": {
+                                "maxLength": 200,
+                                "type": "string"
+                              },
+                              "integration_id": {
+                                "maximum": 2147483647,
+                                "minimum": 1,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "context"
+                            ],
+                            "type": "object"
+                          },
+                          "maxItems": 100,
+                          "type": "array"
+                        },
+                        "strict_required_status_checks_policy": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [],
+                      "type": "object"
+                    },
+                    "type": {
+                      "enum": [
+                        "creation",
+                        "update",
+                        "deletion",
+                        "required_linear_history",
+                        "required_signatures",
+                        "non_fast_forward",
+                        "pull_request",
+                        "required_status_checks",
+                        "required_deployments"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              "target": {
+                "enum": [
+                  "branch",
+                  "tag"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Change a webhook's URL, events, or active state.",
+      "externalAgents": true,
+      "group": "Administration",
+      "method": "PATCH",
+      "name": "update_webhook",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/hooks/{id}",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/hooks/{id}",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "active": {
+                "type": "boolean"
+              },
+              "config": {
+                "additionalProperties": false,
+                "properties": {
+                  "content_type": {
+                    "enum": [
+                      "json",
+                      "form"
+                    ],
+                    "type": "string"
+                  },
+                  "insecure_ssl": {
+                    "enum": [
+                      "0"
+                    ],
+                    "type": "string"
+                  },
+                  "url": {
+                    "maxLength": 2048,
+                    "type": "string"
+                  }
+                },
+                "required": [],
+                "type": "object"
+              },
+              "events": {
+                "items": {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a branch at a commit SHA. Pass ref as refs/heads/<name>.",
+      "externalAgents": true,
+      "group": "Changes",
+      "method": "POST",
+      "name": "create_branch",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/git/refs",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/git/matching-refs/heads",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "ref": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "sha": {
+                "maxLength": 64,
+                "type": "string"
+              }
+            },
+            "required": [
+              "ref",
+              "sha"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a lightweight tag at a commit SHA. Pass ref as refs/tags/<name>.",
+      "externalAgents": true,
+      "group": "Changes",
+      "method": "POST",
+      "name": "create_tag",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/git/refs",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/git/matching-refs/tags",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "ref": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "sha": {
+                "maxLength": 64,
+                "type": "string"
+              }
+            },
+            "required": [
+              "ref",
+              "sha"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete a branch by name.",
+      "externalAgents": true,
+      "group": "Changes",
+      "method": "DELETE",
+      "name": "delete_branch",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/git/refs/heads/{branch}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/git/ref/heads/{branch}",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "branch": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "branch"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete a tag by name.",
+      "externalAgents": true,
+      "group": "Changes",
+      "method": "DELETE",
+      "name": "delete_tag",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/git/refs/tags/{tag}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/git/ref/tags/{tag}",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "tag": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Add an issue/PR from the selected repository to a linked project.",
+      "externalAgents": true,
+      "group": "Collaboration",
+      "method": "GRAPHQL",
+      "name": "add_project_item",
+      "nativeOnly": false,
+      "path": "addProjectV2ItemById",
+      "permission": "push",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "content_id": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "project_id": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "content_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Comment on a discussion in the selected repository.",
+      "externalAgents": true,
+      "group": "Collaboration",
+      "method": "GRAPHQL",
+      "name": "comment_discussion",
+      "nativeOnly": false,
+      "path": "addDiscussionComment",
+      "permission": "push",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "maxLength": 65536,
+            "type": "string"
+          },
+          "discussion_id": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "discussion_id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a repository discussion after native review.",
+      "externalAgents": true,
+      "group": "Collaboration",
+      "method": "GRAPHQL",
+      "name": "create_discussion",
+      "nativeOnly": false,
+      "path": "createDiscussion",
+      "permission": "push",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "maxLength": 65536,
+            "type": "string"
+          },
+          "category_id": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 500,
+            "type": "string"
+          }
+        },
+        "required": [
+          "category_id",
+          "title",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read selected repository discussion comments.",
+      "externalAgents": true,
+      "group": "Collaboration",
+      "method": "GRAPHQL",
+      "name": "discussion_comments",
+      "nativeOnly": false,
+      "path": "discussionComments",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "number": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read linked Projects v2 and selected repository items.",
+      "externalAgents": true,
+      "group": "Collaboration",
+      "method": "GRAPHQL",
+      "name": "linked_projects",
+      "nativeOnly": false,
+      "path": "projectsV2",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List discussions for this repository.",
+      "externalAgents": true,
+      "group": "Collaboration",
+      "method": "GRAPHQL",
+      "name": "list_discussions",
+      "nativeOnly": false,
+      "path": "discussions",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Update a field on a linked project item scoped to this repository.",
+      "externalAgents": true,
+      "group": "Collaboration",
+      "method": "GRAPHQL",
+      "name": "update_project_item",
+      "nativeOnly": false,
+      "path": "updateProjectV2ItemFieldValue",
+      "permission": "push",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "maxLength": 10,
+            "type": "string"
+          },
+          "field_id": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "item_id": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "number": {
+            "type": "number"
+          },
+          "project_id": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "single_select_option_id": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 500,
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "item_id",
+          "field_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Evaluate bounded arithmetic without executing code.",
+      "externalAgents": true,
+      "group": "General",
+      "method": "GET",
+      "name": "calculator",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "expression": {
+            "maxLength": 500,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expression"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read current date/time with explicit timezone.",
+      "externalAgents": true,
+      "group": "General",
+      "method": "GET",
+      "name": "datetime",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "timezone": {
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read only an explicitly attached document.",
+      "externalAgents": true,
+      "group": "General",
+      "method": "GET",
+      "name": "file_read",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "attachment_id": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "required": [
+          "attachment_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Discover up to 12 permitted tools by query; relevant definitions become available in the next request.",
+      "externalAgents": true,
+      "group": "General",
+      "method": "GET",
+      "name": "find_tools",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Index an attached document in the encrypted lexical knowledge base.",
+      "externalAgents": true,
+      "group": "General",
+      "method": "GET",
+      "name": "index_document",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "attachment_id": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "required": [
+          "attachment_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Lexically retrieve bounded excerpts from authorized documents.",
+      "externalAgents": true,
+      "group": "General",
+      "method": "GET",
+      "name": "knowledge_base",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "maxLength": 500,
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Convert supported length, mass, temperature, and time units.",
+      "externalAgents": true,
+      "group": "General",
+      "method": "GET",
+      "name": "unit_convert",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "maxLength": 30,
+            "type": "string"
+          },
+          "to": {
+            "maxLength": 30,
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "from",
+          "to"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Fetch a public HTTPS page with consent; no credentials or redirects.",
+      "externalAgents": true,
+      "group": "General",
+      "method": "GET",
+      "name": "web_fetch",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "maxLength": 2048,
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Search using the explicitly enabled destination; untrusted results.",
+      "externalAgents": true,
+      "group": "General",
+      "method": "GET",
+      "name": "web_search",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "maxLength": 500,
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Add a comment to an issue or pull request by number.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "POST",
+      "name": "comment_issue",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/issues/{id}/comments",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/issues/{id}/comments",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "body": {
+                "maxLength": 65536,
+                "type": "string"
+              }
+            },
+            "required": [
+              "body"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Open an issue with a title and optional body, labels, assignees, and milestone.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "POST",
+      "name": "create_issue",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/issues",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/issues",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "assignees": {
+                "items": {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              "body": {
+                "maxLength": 65536,
+                "type": "string"
+              },
+              "labels": {
+                "items": {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              "milestone": {
+                "maximum": 2147483647,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "state": {
+                "enum": [
+                  "open",
+                  "closed"
+                ],
+                "type": "string"
+              },
+              "title": {
+                "maxLength": 4096,
+                "type": "string"
+              }
+            },
+            "required": [
+              "title"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a label with a name, hex color, and optional description.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "POST",
+      "name": "create_label",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/labels",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/labels",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "color": {
+                "maxLength": 6,
+                "type": "string"
+              },
+              "description": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 200,
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "color"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a milestone with a title and optional description and due date.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "POST",
+      "name": "create_milestone",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/milestones",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/milestones",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "description": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "due_on": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "open",
+                  "closed"
+                ],
+                "type": "string"
+              },
+              "title": {
+                "maxLength": 4096,
+                "type": "string"
+              }
+            },
+            "required": [
+              "title"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete an issue comment by comment ID.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "DELETE",
+      "name": "delete_issue_comment",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/issues/comments/{id}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/issues/comments/{id}",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete a label and remove it from every issue and pull request.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "DELETE",
+      "name": "delete_label",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/labels/{label}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/labels/{label}",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete a milestone. Its issues remain and lose the milestone.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "DELETE",
+      "name": "delete_milestone",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/milestones/{id}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/milestones/{id}",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Change an issue's title, body, state, labels, assignees, or milestone.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "PATCH",
+      "name": "edit_issue",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/issues/{id}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/issues/{id}",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "assignees": {
+                "items": {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              "body": {
+                "maxLength": 65536,
+                "type": "string"
+              },
+              "labels": {
+                "items": {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              "milestone": {
+                "maximum": 2147483647,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "state": {
+                "enum": [
+                  "open",
+                  "closed"
+                ],
+                "type": "string"
+              },
+              "title": {
+                "maxLength": 4096,
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Replace the text of an issue comment by comment ID.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "PATCH",
+      "name": "edit_issue_comment",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/issues/comments/{id}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/issues/comments/{id}",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "body": {
+                "maxLength": 65536,
+                "type": "string"
+              }
+            },
+            "required": [
+              "body"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Rename a label or change its color or description.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "PATCH",
+      "name": "edit_label",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/labels/{label}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/labels/{label}",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "color": {
+                "maxLength": 6,
+                "type": "string"
+              },
+              "description": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "new_name": {
+                "maxLength": 200,
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "label": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Change a milestone's title, description, due date, or state.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "PATCH",
+      "name": "edit_milestone",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/milestones/{id}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/milestones/{id}",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "description": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "due_on": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "open",
+                  "closed"
+                ],
+                "type": "string"
+              },
+              "title": {
+                "maxLength": 4096,
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read the comments on an issue or pull request by number.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "GET",
+      "name": "issue_comments",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/issues/{id}/comments",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List issues by state: open, closed, or all. GitHub includes pull requests in this list.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "GET",
+      "name": "list_issues",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/issues",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "enum": [
+              "open",
+              "closed",
+              "all"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List the repository's labels with colors and descriptions.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "GET",
+      "name": "list_labels",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/labels",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List milestones with due dates and open and closed issue counts.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "GET",
+      "name": "list_milestones",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/milestones",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read one issue by number: title, body, state, labels, and assignees.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "GET",
+      "name": "read_issue",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/issues/{id}",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Search this repository's issues by keywords, without qualifiers.",
+      "externalAgents": true,
+      "group": "Issues",
+      "method": "GET",
+      "name": "search_issues",
+      "nativeOnly": false,
+      "path": "search/issues",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "maxLength": 300,
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Start a pending pull request review with a summary and line comments.",
+      "externalAgents": true,
+      "group": "Pull requests",
+      "method": "POST",
+      "name": "draft_review",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/pulls/{id}/reviews",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/pulls/{id}/reviews",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "body": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "comments": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "body": {
+                      "maxLength": 4096,
+                      "type": "string"
+                    },
+                    "line": {
+                      "maximum": 2147483647,
+                      "minimum": 1,
+                      "type": "integer"
+                    },
+                    "path": {
+                      "maxLength": 1024,
+                      "type": "string"
+                    },
+                    "side": {
+                      "enum": [
+                        "LEFT",
+                        "RIGHT"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "line",
+                    "side",
+                    "body"
+                  ],
+                  "type": "object"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              "commit_id": {
+                "maxLength": 64,
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Comment on lines of a pull request diff, or reply to an existing review comment.",
+      "externalAgents": true,
+      "group": "Pull requests",
+      "method": "POST",
+      "name": "inline_comment",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/pulls/{id}/comments",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/pulls/{id}",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "body": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "commit_id": {
+                "maxLength": 64,
+                "type": "string"
+              },
+              "in_reply_to": {
+                "maximum": 2147483647,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "line": {
+                "maximum": 2147483647,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "path": {
+                "maxLength": 1024,
+                "type": "string"
+              },
+              "side": {
+                "enum": [
+                  "LEFT",
+                  "RIGHT"
+                ],
+                "type": "string"
+              },
+              "start_line": {
+                "maximum": 2147483647,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "start_side": {
+                "enum": [
+                  "LEFT",
+                  "RIGHT"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "body"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List pull requests by state: open, closed, or all.",
+      "externalAgents": true,
+      "group": "Pull requests",
+      "method": "GET",
+      "name": "list_pull_requests",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/pulls",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "enum": [
+              "open",
+              "closed",
+              "all"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Merge a pull request by merge, squash, or rebase. The head SHA must still match.",
+      "externalAgents": true,
+      "group": "Pull requests",
+      "method": "PUT",
+      "name": "merge_pull_request",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/pulls/{id}/merge",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/pulls/{id}",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "commit_message": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "commit_title": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "merge_method": {
+                "enum": [
+                  "merge",
+                  "squash",
+                  "rebase"
+                ],
+                "type": "string"
+              },
+              "sha": {
+                "maxLength": 64,
+                "type": "string"
+              }
+            },
+            "required": [
+              "sha",
+              "merge_method"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Open a pull request from head into base with a title and description, optionally as a draft.",
+      "externalAgents": true,
+      "group": "Pull requests",
+      "method": "POST",
+      "name": "open_pull_request",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/pulls",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/pulls",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "base": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "body": {
+                "maxLength": 65536,
+                "type": "string"
+              },
+              "draft": {
+                "type": "boolean"
+              },
+              "head": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "maintainer_can_modify": {
+                "type": "boolean"
+              },
+              "state": {
+                "enum": [
+                  "open",
+                  "closed"
+                ],
+                "type": "string"
+              },
+              "title": {
+                "maxLength": 4096,
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "head",
+              "base"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List a pull request's changed files with additions, deletions, and patches.",
+      "externalAgents": true,
+      "group": "Pull requests",
+      "method": "GET",
+      "name": "pull_request_files",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/pulls/{id}/files",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List the reviews submitted on a pull request.",
+      "externalAgents": true,
+      "group": "Pull requests",
+      "method": "GET",
+      "name": "pull_request_reviews",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/pulls/{id}/reviews",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read one pull request: description, branches, mergeability, and review state.",
+      "externalAgents": true,
+      "group": "Pull requests",
+      "method": "GET",
+      "name": "read_pull_request",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/pulls/{id}",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Mark a selected repository pull request ready for review.",
+      "externalAgents": true,
+      "group": "Pull requests",
+      "method": "GRAPHQL",
+      "name": "ready_pull_request",
+      "nativeOnly": false,
+      "path": "markPullRequestReadyForReview",
+      "permission": "push",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "number": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Ask users or teams to review a pull request.",
+      "externalAgents": true,
+      "group": "Pull requests",
+      "method": "POST",
+      "name": "request_reviewers",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/pulls/{id}/requested_reviewers",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/pulls/{id}/requested_reviewers",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "reviewers": {
+                "items": {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              "team_reviewers": {
+                "items": {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Resolve a selected repository review thread after review.",
+      "externalAgents": true,
+      "group": "Pull requests",
+      "method": "GRAPHQL",
+      "name": "resolve_thread",
+      "nativeOnly": false,
+      "path": "resolveReviewThread",
+      "permission": "push",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "thread_id": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "thread_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List review threads for a selected pull request.",
+      "externalAgents": true,
+      "group": "Pull requests",
+      "method": "GRAPHQL",
+      "name": "review_threads",
+      "nativeOnly": false,
+      "path": "reviewThreads",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "number": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Search this repository's pull requests by keywords, without qualifiers.",
+      "externalAgents": true,
+      "group": "Pull requests",
+      "method": "GET",
+      "name": "search_pull_requests",
+      "nativeOnly": false,
+      "path": "search/issues",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "maxLength": 300,
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Submit a pending review as APPROVE, REQUEST_CHANGES, or COMMENT.",
+      "externalAgents": true,
+      "group": "Pull requests",
+      "method": "POST",
+      "name": "submit_review",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/pulls/{id}/reviews/{review_id}/events",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/pulls/{id}/reviews/{review_id}",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "body": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "event": {
+                "enum": [
+                  "APPROVE",
+                  "REQUEST_CHANGES",
+                  "COMMENT"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "event"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "review_id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "review_id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Change a pull request's title, description, base branch, draft status, or state.",
+      "externalAgents": true,
+      "group": "Pull requests",
+      "method": "PATCH",
+      "name": "update_pull_request",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/pulls/{id}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/pulls/{id}",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "base": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "body": {
+                "maxLength": 65536,
+                "type": "string"
+              },
+              "draft": {
+                "type": "boolean"
+              },
+              "head": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "maintainer_can_modify": {
+                "type": "boolean"
+              },
+              "state": {
+                "enum": [
+                  "open",
+                  "closed"
+                ],
+                "type": "string"
+              },
+              "title": {
+                "maxLength": 4096,
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a release for a tag with written or generated notes, optionally as a draft or pre-release.",
+      "externalAgents": true,
+      "group": "Releases",
+      "method": "POST",
+      "name": "create_release",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/releases",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/releases",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "body": {
+                "maxLength": 65536,
+                "type": "string"
+              },
+              "draft": {
+                "type": "boolean"
+              },
+              "generate_release_notes": {
+                "type": "boolean"
+              },
+              "make_latest": {
+                "enum": [
+                  "true",
+                  "false",
+                  "legacy"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "prerelease": {
+                "type": "boolean"
+              },
+              "tag_name": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "target_commitish": {
+                "maxLength": 200,
+                "type": "string"
+              }
+            },
+            "required": [
+              "tag_name"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete a release. Its Git tag is kept.",
+      "externalAgents": true,
+      "group": "Releases",
+      "method": "DELETE",
+      "name": "delete_release",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/releases/{id}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/releases/{id}",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete one file attached to a release.",
+      "externalAgents": true,
+      "group": "Releases",
+      "method": "DELETE",
+      "name": "delete_release_asset",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/releases/assets/{id}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/releases/assets/{id}",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Change a release's tag, title, notes, or draft, pre-release, and latest status.",
+      "externalAgents": true,
+      "group": "Releases",
+      "method": "PATCH",
+      "name": "edit_release",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/releases/{id}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/releases/{id}",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "body": {
+                "maxLength": 65536,
+                "type": "string"
+              },
+              "draft": {
+                "type": "boolean"
+              },
+              "generate_release_notes": {
+                "type": "boolean"
+              },
+              "make_latest": {
+                "enum": [
+                  "true",
+                  "false",
+                  "legacy"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "prerelease": {
+                "type": "boolean"
+              },
+              "tag_name": {
+                "maxLength": 200,
+                "type": "string"
+              },
+              "target_commitish": {
+                "maxLength": 200,
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List releases and pre-releases with their tags.",
+      "externalAgents": true,
+      "group": "Releases",
+      "method": "GET",
+      "name": "list_releases",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/releases",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read one release: tag, notes, assets, and draft or pre-release state.",
+      "externalAgents": true,
+      "group": "Releases",
+      "method": "GET",
+      "name": "read_release",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/releases/{id}",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List the files attached to a release.",
+      "externalAgents": true,
+      "group": "Releases",
+      "method": "GET",
+      "name": "release_assets",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/releases/{id}/assets",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Upload an explicitly imported encrypted asset after native review.",
+      "externalAgents": true,
+      "group": "Releases",
+      "method": "ASSET",
+      "name": "upload_release_asset",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/releases/{id}/assets",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/releases/{id}",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "asset_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Compare base and head refs: commits ahead and behind, and changed files with patches.",
+      "externalAgents": true,
+      "group": "Repositories",
+      "method": "GET",
+      "name": "compare_commits",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/compare/{base}...{head}",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "base": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "head": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "base",
+          "head"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List recent commits on the selected branch, optionally only those that touch a path.",
+      "externalAgents": true,
+      "group": "Repositories",
+      "method": "GET",
+      "name": "git_log",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/commits",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List the repository's branches and their head commits.",
+      "externalAgents": true,
+      "group": "Repositories",
+      "method": "GET",
+      "name": "list_branches",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/branches",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List the repository's tags and their commits.",
+      "externalAgents": true,
+      "group": "Repositories",
+      "method": "GET",
+      "name": "list_tags",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/tags",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read the repository's details: default branch, visibility, topics, and counts.",
+      "externalAgents": true,
+      "group": "Repositories",
+      "method": "GET",
+      "name": "repository_info",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Search this repository's code by keywords, without qualifiers. GitHub indexes only the default branch.",
+      "externalAgents": true,
+      "group": "Repositories",
+      "method": "GET",
+      "name": "search_code",
+      "nativeOnly": false,
+      "path": "search/code",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "maxLength": 300,
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete a Dependabot secret by name.",
+      "externalAgents": true,
+      "group": "Secrets",
+      "method": "DELETE",
+      "name": "delete_dependabot_secret",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/dependabot/secrets/{name}",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/dependabot/secrets",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete an environment secret by name.",
+      "externalAgents": true,
+      "group": "Secrets",
+      "method": "DELETE",
+      "name": "delete_environment_secret",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/environments/{environment}/secrets/{name}",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/environments/{environment}/secrets",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "environment": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "environment"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete an Actions secret by name.",
+      "externalAgents": true,
+      "group": "Secrets",
+      "method": "DELETE",
+      "name": "delete_secret",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/actions/secrets/{name}",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/actions/secrets",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List Dependabot secret names and update dates. Values are never readable.",
+      "externalAgents": true,
+      "group": "Secrets",
+      "method": "GET",
+      "name": "list_dependabot_secrets",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/dependabot/secrets",
+      "permission": "admin",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List an environment's secret names and update dates. Values are never readable.",
+      "externalAgents": true,
+      "group": "Secrets",
+      "method": "GET",
+      "name": "list_environment_secrets",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/environments/{environment}/secrets",
+      "permission": "admin",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "environment": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "environment"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List Actions secret names and update dates. Values are never readable.",
+      "externalAgents": true,
+      "group": "Secrets",
+      "method": "GET",
+      "name": "list_secrets",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/actions/secrets",
+      "permission": "admin",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create or replace a Dependabot secret from a value entered in the app.",
+      "externalAgents": false,
+      "group": "Secrets",
+      "method": "PUT",
+      "name": "set_dependabot_secret",
+      "nativeOnly": true,
+      "path": "repos/{owner}/{repo}/dependabot/secrets/{name}",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/dependabot/secrets",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "encrypted_value": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "key_id": {
+                "maxLength": 4096,
+                "type": "string"
+              }
+            },
+            "required": [
+              "encrypted_value",
+              "key_id"
+            ],
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create or replace an environment secret from a value entered in the app.",
+      "externalAgents": false,
+      "group": "Secrets",
+      "method": "PUT",
+      "name": "set_environment_secret",
+      "nativeOnly": true,
+      "path": "repos/{owner}/{repo}/environments/{environment}/secrets/{name}",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/environments/{environment}/secrets",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "encrypted_value": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "key_id": {
+                "maxLength": 4096,
+                "type": "string"
+              }
+            },
+            "required": [
+              "encrypted_value",
+              "key_id"
+            ],
+            "type": "object"
+          },
+          "environment": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "environment",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create or replace an Actions secret from a value entered in the app.",
+      "externalAgents": false,
+      "group": "Secrets",
+      "method": "PUT",
+      "name": "set_secret",
+      "nativeOnly": true,
+      "path": "repos/{owner}/{repo}/actions/secrets/{name}",
+      "permission": "admin",
+      "reviewPath": "repos/{owner}/{repo}/actions/secrets",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "encrypted_value": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "key_id": {
+                "maxLength": 4096,
+                "type": "string"
+              }
+            },
+            "required": [
+              "encrypted_value",
+              "key_id"
+            ],
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List code scanning alerts with rule, severity, and location.",
+      "externalAgents": true,
+      "group": "Security",
+      "method": "GET",
+      "name": "code_scanning_alerts",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/code-scanning/alerts",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List Dependabot alerts for vulnerable dependencies.",
+      "externalAgents": true,
+      "group": "Security",
+      "method": "GET",
+      "name": "dependabot_alerts",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/dependabot/alerts",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List secret scanning alerts by type and state. Secret values are never returned.",
+      "externalAgents": true,
+      "group": "Security",
+      "method": "GET",
+      "name": "secret_scanning_alerts",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/secret-scanning/alerts",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Dismiss a code scanning alert with a reason, or reopen it.",
+      "externalAgents": true,
+      "group": "Security",
+      "method": "PATCH",
+      "name": "update_code_scanning_alert",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/code-scanning/alerts/{id}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/code-scanning/alerts/{id}",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "dismissed_comment": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "dismissed_reason": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "dismissed",
+                  "open"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Dismiss a Dependabot alert with a reason, or reopen it.",
+      "externalAgents": true,
+      "group": "Security",
+      "method": "PATCH",
+      "name": "update_dependabot_alert",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/dependabot/alerts/{id}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/dependabot/alerts/{id}",
+      "risk": "mutation",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "dismissed_comment": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "dismissed_reason": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "dismissed",
+                  "open"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Resolve a secret scanning alert with a resolution, or reopen it.",
+      "externalAgents": true,
+      "group": "Security",
+      "method": "PATCH",
+      "name": "update_secret_scanning_alert",
+      "nativeOnly": false,
+      "path": "repos/{owner}/{repo}/secret-scanning/alerts/{id}",
+      "permission": "push",
+      "reviewPath": "repos/{owner}/{repo}/secret-scanning/alerts/{id}",
+      "risk": "consequential",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "resolution": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "resolution_comment": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "resolved",
+                  "open"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "id": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Validate and stage a unified patch; no fuzzy matching.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "apply_patch",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "push",
+      "risk": "localEdit",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "patch": {
+            "maxLength": 1048576,
+            "type": "string"
+          }
+        },
+        "required": [
+          "patch"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Audit up to five paths and ten commits each, displaying coverage.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "audit_secret_history",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "paths": {
+            "items": {
+              "maxLength": 1024,
+              "type": "string"
+            },
+            "maxItems": 100,
+            "type": "array"
+          }
+        },
+        "required": [
+          "paths"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a local draft checkpoint.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "checkpoint",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "push",
+      "risk": "localEdit",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Stage a file deletion locally.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "delete_file",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "push",
+      "risk": "localEdit",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Show the staged before/after comparison with masked credentials.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "git_diff",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "List the selected branch tree and staged overlay. Bounded coverage.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "list_files",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Prepare a clean two-parent merge or bounded conflict review.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "merge_branch",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "push",
+      "risk": "localEdit",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "head": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "head"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Stage an atomic move preserving mode.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "move_file",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "push",
+      "risk": "localEdit",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "destination": {
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "path": {
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "destination"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read text on the selected commit with credentials masked.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "read_file",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read up to 200 lines.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "read_file_range",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "maximum": 200,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "path": {
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "start": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "start"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Stage detected credential redaction; original values remain private.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "redact_secrets",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "push",
+      "risk": "localEdit",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Stage exactly one matching text replacement.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "replace_text",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "push",
+      "risk": "localEdit",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "find": {
+            "maxLength": 262144,
+            "type": "string"
+          },
+          "path": {
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "replace": {
+            "maxLength": 262144,
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "find",
+          "replace"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Summarize paths and declarations in a bounded selected-branch map.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "repository_context_map",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Prepare an immutable commit review. Publication remains native-only.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "request_user_approval",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "maxLength": 1000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Restore a local checkpoint; invalidate prior reviews.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "restore_checkpoint",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "push",
+      "risk": "localEdit",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Prepare a forward revert of a single-parent commit; no history rewrite.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "revert_last_commit",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "push",
+      "risk": "localEdit",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "maxLength": 1000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Scan up to 20 paths; return names, kinds, lines and coverage only.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "scan_secrets",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "paths": {
+            "items": {
+              "maxLength": 1024,
+              "type": "string"
+            },
+            "maxItems": 100,
+            "type": "array"
+          }
+        },
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Lexically search up to 20 text files on the selected branch.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "search_branch",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "pull",
+      "risk": "read",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "maxLength": 300,
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Keep selected hunk indexes from the current draft file.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "select_hunks",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "push",
+      "risk": "localEdit",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "hunks": {
+            "items": {
+              "maximum": 999,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "path": {
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "hunks"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Stage explicitly attached bytes as an opaque repository asset; maximum 1 MiB.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "upload_attachment",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "push",
+      "risk": "localEdit",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "attachment_id": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "path": {
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "attachment_id",
+          "path"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Stage text locally. No remote writes.",
+      "externalAgents": true,
+      "group": "Workspace",
+      "method": "GET",
+      "name": "write_file",
+      "nativeOnly": false,
+      "path": "",
+      "permission": "push",
+      "risk": "localEdit",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 262144,
+            "type": "string"
+          },
+          "path": {
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "type": "object"
+      }
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "color_space": "sRGB",
+  "tokens": {
+    "RMBackground": {
+      "light": "#F5F2EB",
+      "dark": "#111315"
+    },
+    "RMSurface": {
+      "light": "#FFFEFA",
+      "dark": "#1C2023"
+    },
+    "RMChrome": {
+      "light": "#EDE9E1",
+      "dark": "#16181A"
+    },
+    "RMInput": {
+      "light": "#E8E5DE",
+      "dark": "#24282B"
+    },
+    "RMSelected": {
+      "light": "#DBEADF",
+      "dark": "#263E32"
+    },
+    "RMText": {
+      "light": "#17201C",
+      "dark": "#F5F2EB"
+    },
+    "RMSecondary": {
+      "light": "#55645C",
+      "dark": "#B4BDB7"
+    },
+    "RMLine": {
+      "light": "#C7CFC8",
+      "dark": "#3B4144"
+    },
+    "RMAccent": {
+      "light": "#087A51",
+      "dark": "#67D4A1"
+    },
+    "RMAccentText": {
+      "light": "#076743",
+      "dark": "#7BE6B1"
+    },
+    "RMAccentSoft": {
+      "light": "#DDEEE3",
+      "dark": "#19382B"
+    },
+    "RMSend": {
+      "light": "#087A51",
+      "dark": "#67D4A1"
+    },
+    "RMOnSend": {
+      "light": "#FFFFFF",
+      "dark": "#092216"
+    },
+    "RMGraphite": {
+      "light": "#151719",
+      "dark": "#151719"
+    },
+    "RMIvory": {
+      "light": "#F5F2EB",
+      "dark": "#F5F2EB"
+    },
+    "RMRed": {
+      "light": "#B32632",
+      "dark": "#FF716F"
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "reference": "https://github.com/Mesutcydev/ios-local-llm",
+  "reference_head": "7a9bbc3d8ddf08d36ecaad29dada5467ec61f2ab",
+  "snapshot": "2026-10-11",
+  "includes_working_tree": true,
+  "files": [
+    {
+      "source": "Packages/OnDeviceUI/Sources/OnDeviceUI/Theme/ODTheme.swift",
+      "sha256": "dc6d55b79589d1f4bcd45f294b45b7152ce4766eb81fa37e2854dbd79f9a688c",
+      "destination": "Packages/RepoManagerUI/Sources/RepoManagerUI/RMTheme.swift",
+      "adapted": true
+    },
+    {
+      "source": "Packages/OnDeviceUI/Sources/OnDeviceUI/Components/ODComposer.swift",
+      "sha256": "436bd360c4260d18a4f0864921024a8c2f4375292e447260b7e3fa481ed6ce0d",
+      "destination": "Packages/RepoManagerUI/Sources/RepoManagerUI/RMComposer.swift",
+      "adapted": true
+    },
+    {
+      "source": "Packages/OnDeviceUI/Sources/OnDeviceUI/Components/ODReasoningBlock.swift",
+      "sha256": "d48d0560ec3f21d3ff43f423d6cd79c84450c4132eec4672574ea81e08031b04",
+      "destination": "Packages/RepoManagerUI/Sources/RepoManagerUI/RMReasoningBlock.swift",
+      "adapted": true
+    },
+    {
+      "source": "Packages/OnDeviceUI/Sources/OnDeviceUI/Components/ODChatActivity.swift",
+      "sha256": "a9e0a89330e59a84d6e3a39ffdc7bc81387c92749cc2c3204375fa6453f2527d",
+      "destination": "Packages/RepoManagerUI/Sources/RepoManagerUI/RMChatActivity.swift",
+      "adapted": true
+    },
+    {
+      "source": "Packages/OnDeviceUI/Sources/OnDeviceUI/Components/ODAssistantReplyLayout.swift",
+      "sha256": "765b4f2960a5e1b595147050d1c9ec123a05806e594101906cb0f894713ca880",
+      "destination": "Packages/RepoManagerUI/Sources/RepoManagerUI/RMAssistantReplyLayout.swift",
+      "adapted": true
+    },
+    {
+      "source": "IOSLocalLLM/Services/RepositorySecretScanner.swift",
+      "sha256": "208923128ac67d91d37ac1f0db78acc37c17e664f0237c5130bf8694ce10bdfd",
+      "destination": "Packages/RepoManagerCore/Sources/RepoManagerCore/RepositorySecretScanner.swift",
+      "adapted": true
+    },
+    {
+      "source": "IOSLocalLLM/Services/Bridge/DEREncoder.swift",
+      "sha256": "314d38a2e599158c2a1a9d2605e9d974b00c95e451c9bff74e5dc7fc0bfa008f",
+      "destination": "Packages/RepoManagerCore/Sources/RepoManagerCore/DEREncoder.swift",
+      "adapted": true
+    }
+  ]
+}

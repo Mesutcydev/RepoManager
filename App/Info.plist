@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Repo Manager</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>RepoManagerGitHubClientID</key>
+    <string>$(REPO_MANAGER_GITHUB_CLIENT_ID)</string>
+    <key>RepoManagerGitHubAppSlug</key>
+    <string>$(REPO_MANAGER_GITHUB_APP_SLUG)</string>
+    <key>RepoManagerChatGPTPlanUsageEnabled</key>
+    <string>$(REPO_MANAGER_CHATGPT_PLAN_USAGE_ENABLED)</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.mesutcydev.repomanager.chatgpt</string>
+            <key>CFBundleURLSchemes</key>
+            <array><string>com.mesutcydev.repomanager.chatgpt</string></array>
+        </dict>
+    </array>
+    <!-- Response reporting is hidden while empty. Set a monitored address to show "Report response…". -->
+    <key>RMSupportEmail</key>
+    <string></string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Host the explicitly enabled, authenticated HTTPS API for your paired agent clients.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Dictate messages and have spoken conversations using Apple-native speech. Audio stays in memory.</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>Authenticate consequential GitHub changes, repository deletion, transfers and secure data removal.</string>
+    <key>UIBackgroundModes</key>
+    <array><string>fetch</string><string>processing</string></array>
+    <key>BGTaskSchedulerPermittedIdentifiers</key>
+    <array><string>com.mesutcydev.repomanager.refresh</string><string>com.mesutcydev.repomanager.history-sync</string></array>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Transcribe your voice on the device with Apple-native speech recognition.</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Repo Manager encrypted bundle</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.mesutcydev.repomanager.encrypted-bundle</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>rmbundle</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+</dict>
+</plist>

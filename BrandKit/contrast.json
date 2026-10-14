@@ -1,0 +1,86 @@
+[
+  {
+    "appearance": "dark",
+    "foreground": "RMText",
+    "background": "RMBackground",
+    "contrast": 16.65,
+    "AA_normal_text": true
+  },
+  {
+    "appearance": "dark",
+    "foreground": "RMSecondary",
+    "background": "RMBackground",
+    "contrast": 9.67,
+    "AA_normal_text": true
+  },
+  {
+    "appearance": "dark",
+    "foreground": "RMSecondary",
+    "background": "RMSurface",
+    "contrast": 8.52,
+    "AA_normal_text": true
+  },
+  {
+    "appearance": "dark",
+    "foreground": "RMAccentText",
+    "background": "RMBackground",
+    "contrast": 12.23,
+    "AA_normal_text": true
+  },
+  {
+    "appearance": "dark",
+    "foreground": "RMOnSend",
+    "background": "RMSend",
+    "contrast": 9.19,
+    "AA_normal_text": true
+  },
+  {
+    "appearance": "dark",
+    "foreground": "RMRed",
+    "background": "RMBackground",
+    "contrast": 6.95,
+    "AA_normal_text": true
+  },
+  {
+    "appearance": "light",
+    "foreground": "RMText",
+    "background": "RMBackground",
+    "contrast": 14.91,
+    "AA_normal_text": true
+  },
+  {
+    "appearance": "light",
+    "foreground": "RMSecondary",
+    "background": "RMBackground",
+    "contrast": 5.58,
+    "AA_normal_text": true
+  },
+  {
+    "appearance": "light",
+    "foreground": "RMSecondary",
+    "background": "RMSurface",
+    "contrast": 6.19,
+    "AA_normal_text": true
+  },
+  {
+    "appearance": "light",
+    "foreground": "RMAccentText",
+    "background": "RMBackground",
+    "contrast": 6.2,
+    "AA_normal_text": true
+  },
+  {
+    "appearance": "light",
+    "foreground": "RMOnSend",
+    "background": "RMSend",
+    "contrast": 5.37,
+    "AA_normal_text": true
+  },
+  {
+    "appearance": "light",
+    "foreground": "RMRed",
+    "background": "RMBackground",
+    "contrast": 5.8,
+    "AA_normal_text": true
+  }
+]

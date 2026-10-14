@@ -52,10 +52,16 @@ for path in sorted(paths):
             if re.search(pattern, data):
                 raise SystemExit(f'Review possible credential in {relative}; source package not written.')
     entries[relative.as_posix()] = data
+source_url_match = re.search(r"^\s*REPO_MANAGER_OPEN_SOURCE_URL:\s*['\"]([^'\"]*)['\"]\s*$",
+                             (ROOT/'project.yml').read_text(), re.MULTILINE)
+source_url = source_url_match.group(1) if source_url_match and source_url_match.group(1) else None
+if source_url and not re.fullmatch(r'https://(?:github.com|gitlab.com|codeberg.org)/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/?', source_url):
+    raise SystemExit('Invalid declared public repository URL.')
 manifest = {
     'prepared_on': args.date.isoformat(), 'license': 'MIT', 'app_price': 'Free',
-    'public_repository': None, 'publication_status': 'Prepared locally; not published',
-    'monetization_status': 'Optional one-time Pro API-provider unlock planned; not implemented or offered',
+    'public_repository': source_url,
+    'publication_status': 'Repository URL declared; verify public access separately' if source_url else 'Prepared locally; not published',
+    'monetization_status': 'Optional $9.99 one-time Pro API-provider unlock prepared; rollout disabled pending access and App Store setup',
     'files': {name: hashlib.sha256(data).hexdigest() for name, data in sorted(entries.items())},
     'excluded': ['Git history', 'compiler/package caches', 'signing files', 'QA logs and screenshots',
                  'TestFlight receipts', 'App Store account/evidence files'],

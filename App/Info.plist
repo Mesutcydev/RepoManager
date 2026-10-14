@@ -24,6 +24,10 @@
     <string>$(REPO_MANAGER_GITHUB_APP_SLUG)</string>
     <key>RepoManagerChatGPTPlanUsageEnabled</key>
     <string>$(REPO_MANAGER_CHATGPT_PLAN_USAGE_ENABLED)</string>
+    <key>RepoManagerProAPIProvidersEnabled</key>
+    <string>$(REPO_MANAGER_PRO_API_PROVIDERS_ENABLED)</string>
+    <key>RepoManagerProProductID</key>
+    <string>$(REPO_MANAGER_PRO_PRODUCT_ID)</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>

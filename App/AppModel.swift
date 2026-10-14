@@ -16,7 +16,7 @@ import UIKit
     let authorization: APIAuthorization; let api: AgentAPI; let server: HTTPSServer; let sync: HistorySync
     let tlsIdentity: TLSIdentity
     let voice = AppleVoice()
-    init() throws {
+    init(providerAccess: ProviderAccessGate) throws {
         let support = try FileManager.default.url(for:.applicationSupportDirectory,in:.userDomainMask,appropriateFor:nil,create:true)
         let fixtures = DevelopmentFixtures.enabled
         let secureCredentials = KeychainStore(service:fixtures ? "com.mesutcydev.repomanager.uitests.v1" : KeychainStore.service)
@@ -32,11 +32,11 @@ import UIKit
         #endif
         connections = GitHubConnectionStore(vault:vault,secrets:secureCredentials,transport:githubHTTP); github = GitHubClient(connections:connections,vault:vault,transport:githubHTTP)
         approvals = ApprovalCoordinator(github:github,vault:vault,authenticator:AppleAuthenticator())
-        workspace = GitHubWorkspace(github:github,vault:vault,approvals:approvals); providers = AppProviderClient(secrets:secureCredentials,chatGPTConnections:chatGPTConnections)
+        workspace = GitHubWorkspace(github:github,vault:vault,approvals:approvals); providers = AppProviderClient(secrets:secureCredentials,chatGPTConnections:chatGPTConnections,access:providerAccess)
         knowledge = LexicalKnowledge(vault:vault); web = WebTools(secrets:secureCredentials)
         tools = ToolRegistry(github:github,workspace:workspace,approvals:approvals,knowledge:knowledge,web:web)
         #if DEBUG
-        let runProvider: any ProviderClient = fixtures ? DevelopmentProvider() : providers
+        let runProvider: any ProviderClient = fixtures ? GatedProviderClient(base:DevelopmentProvider(),access:providerAccess) : providers
         #else
         let runProvider: any ProviderClient = providers
         #endif
@@ -56,6 +56,7 @@ import UIKit
     var oneTimeCredential: String?
     let githubSignIn = GitHubSignInSession()
     let chatGPTSignIn = ChatGPTSignInSession()
+    let pro = ProStore()
     var chatGPTSessions: [UUID:ChatGPTSession] = [:]
     var chatGPTPlanWelcomePresented = false
     var chatGPTUsageLimitReached = false
@@ -77,7 +78,7 @@ import UIKit
     @ObservationIgnored private var generation: UInt64 = 0
     var lifecycleID:UInt64 { generation }
     @ObservationIgnored private var restoration: (UUID,Task<Void,Never>)?
-    init() { do { runtime = try AppRuntime() } catch { self.error = RMError.unavailable.localizedDescription; locked = true } }
+    init() { pro.start(); do { runtime = try AppRuntime(providerAccess:pro.access) } catch { self.error = RMError.unavailable.localizedDescription; locked = true } }
     var conversation: Conversation? { data.conversations.first { $0.id == selectedConversationID } }
     var appearance: RMAppearancePreference { RMAppearancePreference(rawValue:data.preferences.appearance) ?? .system }
     var voice: AppleVoice? { runtime?.voice }
@@ -339,6 +340,8 @@ import UIKit
         var profile = profile
         guard let runtime,!locked else { throw RMError.locked }
         let lease = generation
+        try await pro.access.require(profile)
+        try Task.checkCancellation(); guard generation == lease,!locked,self.runtime === runtime else { throw RMError.cancelled }
         if profile.usesChatGPT {
             try ChatGPTAuth.validateProfile(profile)
             guard credential.isEmpty else { throw RMError.invalidInput }
@@ -547,6 +550,7 @@ import UIKit
         }
     }
     func becameActive() async {
+        await pro.refreshEntitlements()
         let wasLocked = locked
         if locked { await load() }
         guard !locked else { return }
@@ -575,6 +579,6 @@ import UIKit
         }
         await runtime.knowledge.clearMemory(); await runtime.workspace.clearMemory()
         data = AppData(); selectedConversationID = nil; selection = .chats; clients = []; certificate = nil; fingerprint = ""
-        voiceTask?.cancel(); self.runtime = try AppRuntime(); await load()
+        voiceTask?.cancel(); self.runtime = try AppRuntime(providerAccess:pro.access); await load()
     }
 }

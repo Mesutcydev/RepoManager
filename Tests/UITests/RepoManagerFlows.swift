@@ -2,6 +2,33 @@ import XCTest
 
 final class RepoManagerFlows: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
+    @MainActor func testProIncludesChatGPTAndUnlocksAPIProviders() throws {
+        let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures","--pro-fixtures","--workspace","providers"]; app.launch()
+        XCTAssertTrue(app.buttons["Add provider"].waitForExistence(timeout:20)); app.buttons["Add provider"].tap()
+        app.buttons["provider.chatgpt"].tap()
+        XCTAssertTrue(app.buttons["chatgpt.continue"].waitForExistence(timeout:5))
+        XCTAssertFalse(app.buttons["pro.purchase"].exists)
+        app.buttons["chatgpt.done"].tap()
+        app.buttons["provider.preset.apple"].tap()
+        XCTAssertTrue(app.navigationBars["Apple Intelligence"].waitForExistence(timeout:5))
+        app.buttons["Cancel"].tap()
+        app.buttons["provider.preset.openAI"].tap()
+        XCTAssertTrue(app.buttons["pro.purchase"].waitForExistence(timeout:5))
+        XCTAssertTrue(app.staticTexts["pro.price"].waitForExistence(timeout:5))
+        let shot = XCTAttachment(screenshot:app.screenshot()); shot.name = "Pro one-time API-provider unlock"; shot.lifetime = .keepAlways; add(shot)
+        app.buttons["pro.restore"].tap()
+        XCTAssertTrue(app.staticTexts["No Pro purchase was found."].waitForExistence(timeout:5))
+        app.buttons["pro.purchase"].tap()
+        XCTAssertTrue(app.staticTexts["pro.unlocked"].waitForExistence(timeout:5))
+        app.buttons["pro.continue"].tap()
+        XCTAssertTrue(app.secureTextFields["API credential (Keychain only)"].waitForExistence(timeout:5))
+        app.buttons["Cancel"].tap()
+        app.buttons["Done"].tap()
+        app.buttons["pro.manage"].tap()
+        app.buttons["pro.restore"].tap()
+        XCTAssertTrue(app.staticTexts["Pro purchase restored."].waitForExistence(timeout:5))
+        XCTAssertTrue(app.staticTexts["pro.unlocked"].exists)
+    }
     @MainActor func testChatGPTSignInRequiresDisclosureAndNoAPIKey() throws {
         let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures","--workspace","providers"]; app.launch()
         XCTAssertTrue(app.buttons["Add provider"].waitForExistence(timeout:20)); app.buttons["Add provider"].tap()

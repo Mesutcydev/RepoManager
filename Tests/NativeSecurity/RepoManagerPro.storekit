@@ -1,0 +1,31 @@
+{
+  "identifier": "8D9B90A2-4680-40AF-B64A-556648CE04D9",
+  "nonRenewingSubscriptions": [],
+  "products": [
+    {
+      "displayPrice": "9.99",
+      "familyShareable": false,
+      "internalID": "6527146809",
+      "localizations": [
+        {
+          "description": "Unlock API providers and custom HTTPS endpoints. Provider usage is billed separately.",
+          "displayName": "Repo Manager Pro",
+          "locale": "en_US"
+        }
+      ],
+      "productID": "com.mesutcydev.repomanager.pro.apiProviders",
+      "referenceName": "Repo Manager Pro API Providers",
+      "type": "NonConsumable"
+    }
+  ],
+  "settings": {
+    "_askToBuyEnabled": false,
+    "_disableDialogs": true,
+    "_failTransactionsEnabled": false,
+    "_locale": "en_US",
+    "_storefront": "USA",
+    "_storeKitErrors": []
+  },
+  "subscriptionGroups": [],
+  "version": { "major": 6, "minor": 3 }
+}

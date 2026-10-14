@@ -7,12 +7,20 @@ struct ProvidersView: View {
     @State private var editor: ProviderProfile?; @State private var comparing = false; @State private var choosing = false
     @State private var removing: ProviderProfile?
     @State private var refreshing = Set<UUID>()
+    @State private var proPresented = false
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment:.leading,spacing:RMLayout.groupGap) {
                     RMPageHeading("Providers",detail:"Each chat uses one provider and model. Credentials stay in Keychain.") {
                         Button { choosing = true } label: { Image(systemName:"plus") }.rmIconButton().accessibilityLabel("Add provider")
+                    }
+                    if model.pro.enabled {
+                        RMCard {
+                            Button { proPresented = true } label: {
+                                RMRow("Repo Manager Pro",detail:model.pro.unlocked ? "API providers unlocked" : "One-time unlock for API providers and custom endpoints",symbol:"key.horizontal",accessory:.chevron)
+                            }.buttonStyle(RMPressButtonStyle()).accessibilityIdentifier("pro.manage")
+                        }
                     }
                     if model.data.providers.isEmpty {
                         let detail: LocalizedStringKey = AppChatGPTConfiguration.enabled
@@ -64,6 +72,7 @@ struct ProvidersView: View {
                 Button("Remove provider",role:.destructive) { Task { do { try await model.deleteProvider(profile.id) } catch { model.error = RMError.locked.localizedDescription } } }
             } message: { _ in Text("Its saved credential is deleted from Keychain. Conversations using it will need another model.") }
             .sheet(isPresented:$comparing) { ProviderComparisonView(model:model) }
+            .sheet(isPresented:$proPresented) { ProUnlockView(store:model.pro) }
         }
     }
     private func refresh(_ profile:ProviderProfile) {
@@ -80,6 +89,8 @@ struct ProviderPresetChooser: View {
     @Bindable var model: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""; @State private var editor: ProviderProfile?
+    @State private var proPresented = false
+    @State private var requestedPreset: ProviderPreset?
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -100,7 +111,11 @@ struct ProviderPresetChooser: View {
                         if !members.isEmpty {
                             RMCard(group.title) {
                                 ForEach(members) { preset in
-                                    Button { editor = ProviderProfile(preset:preset) } label: {
+                                    Button {
+                                        let profile = ProviderProfile(preset:preset)
+                                        if model.pro.requiresUnlock(profile) { requestedPreset = preset; proPresented = true }
+                                        else { editor = profile }
+                                    } label: {
                                         RMRow(preset.title,detail:group.detail(preset),accessory:.chevron) { ProviderMark(preset:preset) } trailing: { EmptyView() }
                                     }.buttonStyle(RMPressButtonStyle()).accessibilityLabel(preset.title).accessibilityIdentifier("provider.preset.\(preset.id)")
                                 }
@@ -118,6 +133,10 @@ struct ProviderPresetChooser: View {
                     if profile.usesChatGPT { ChatGPTAccountView(model:model,initial:profile) }
                     else { ProviderEditor(model:model,initial:profile) }
                 }
+                .sheet(isPresented:$proPresented,onDismiss:{
+                    if model.pro.unlocked,let preset = requestedPreset { editor = ProviderProfile(preset:preset) }
+                    requestedPreset = nil
+                }) { ProUnlockView(store:model.pro) }
         }
     }
 }

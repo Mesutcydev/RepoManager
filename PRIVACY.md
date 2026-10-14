@@ -24,6 +24,7 @@ Repo Manager has no developer-operated account service, analytics collector, adv
 | Exports/backups | Encrypted `.rmbundle`, Argon2id passphrase protection, excluding credentials and live approvals. Reconnection/fresh review required after import. |
 | Copy | User-triggered response text, credential-masked, local-only clipboard, 60-second expiry. |
 | External agents | Explicit HTTPS client credentials/grants; no default existing chat history or unrestricted repository access. Client-owned compatibility tool calls are returned to that client. |
+| Optional Pro purchase | Prepared but disabled. When enabled, Apple StoreKit handles payment and returns locally verified purchase entitlements. Repo Manager has no developer payment backend and does not receive payment-card details. No purchase token or receipt is included in portable vault exports. |
 
 Detected credentials are masked, but detection is a bounded aid rather than proof a document contains no secrets. Users decide which repository/documents to disclose. The app never asks a model to store or manage secret values; Actions/Dependabot secrets use native secure input and GitHub sealed-box encryption.
 

@@ -1,6 +1,6 @@
 # Contributing
 
-Repo Manager is being prepared for a MIT-licensed public release. The current app is free; the planned optional one-time Pro API-provider unlock is documented in [Docs/MONETIZATION.md](Docs/MONETIZATION.md) and is not implemented in this snapshot. Use Xcode 27, Swift 6 and XcodeGen 2.44 or later. Generate from `project.yml`, configure your own signing identifiers for device builds, and follow [SETUP.md](SETUP.md).
+Repo Manager's complete MIT source is public at [Mesutcydev/RepoManager](https://github.com/Mesutcydev/RepoManager). The current distribution is free. The optional $9.99 one-time Pro API-provider unlock is prepared in source, with rollout disabled; see [Docs/MONETIZATION.md](Docs/MONETIZATION.md). Use Xcode 27, Swift 6 and XcodeGen 2.44 or later. Generate from `project.yml`, configure your own signing identifiers for device builds, and follow [SETUP.md](SETUP.md).
 
 Run `swift test --package-path Packages/RepoManagerCore` and `python3 scripts/validate_project.py` before submitting changes. Build iOS Simulator and Mac Catalyst for native changes. Tests use synthetic credentials; describe separate live-service checks accurately.
 

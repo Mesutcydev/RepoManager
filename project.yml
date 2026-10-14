@@ -55,8 +55,12 @@ targets:
         # Public identity of the dedicated GitHub App owned by Mesutcydev.
         REPO_MANAGER_GITHUB_CLIENT_ID: 'Iv23liukghEjpO3HgPsd'
         REPO_MANAGER_GITHUB_APP_SLUG: 'repo-manager-by-mesutcydev'
-        # Enable distribution only after publishing the complete free MIT app.
-        REPO_MANAGER_OPEN_SOURCE_URL: ''
+        # Complete MIT source is public; monetized ChatGPT enablement needs the applicable OpenAI access decision.
+        REPO_MANAGER_OPEN_SOURCE_URL: 'https://github.com/Mesutcydev/RepoManager'
+        # Prepared purchase flow stays off until OpenAI clearance and StoreKit product setup.
+        REPO_MANAGER_PRO_API_PROVIDERS_ENABLED: NO
+        REPO_MANAGER_CHATGPT_MONETIZATION_CLEARED: NO
+        REPO_MANAGER_PRO_PRODUCT_ID: 'com.mesutcydev.repomanager.pro.apiProviders'
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: App/Info.plist
         CODE_SIGN_ENTITLEMENTS: App/RepoManager.entitlements
@@ -135,7 +139,10 @@ schemes:
       config: Debug
     test:
       config: Debug
-      targets: [RepoManagerUITests, RepoManagerSecurityTests]
+      targets:
+        - RepoManagerUITests
+        - name: RepoManagerSecurityTests
+          skippedTests: [ProStoreKitTests]
   RepoManagerTestFlight:
     build:
       targets:
@@ -143,3 +150,18 @@ schemes:
         RepoManagerShare: all
     archive:
       config: TestFlight
+  RepoManagerStoreKitTests:
+    build:
+      targets:
+        RepoManager: all
+        RepoManagerShare: all
+    run:
+      config: Debug
+      storeKitConfiguration: Tests/NativeSecurity/RepoManagerPro.storekit
+    test:
+      config: Debug
+      language: en
+      region: US
+      targets:
+        - name: RepoManagerSecurityTests
+          selectedTests: [ProStoreKitTests]

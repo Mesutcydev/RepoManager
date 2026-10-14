@@ -6,8 +6,10 @@ import RepoManagerCore
 struct AppProviderClient: ProviderClient {
     let cloud: CloudProviderClient
     let chatGPT: ChatGPTProviderClient
+    let access: ProviderAccessGate
     let apple = AppleProviderClient()
-    init(secrets: any SecretStore, chatGPTConnections: ChatGPTConnectionStore) {
+    init(secrets: any SecretStore, chatGPTConnections: ChatGPTConnectionStore, access: ProviderAccessGate) {
+        self.access = access
         cloud = CloudProviderClient(secrets:secrets); chatGPT = ChatGPTProviderClient(connections:chatGPTConnections)
     }
     func stream(_ request: RunRequest) -> AsyncThrowingStream<ChatEvent,Error> {
@@ -15,9 +17,20 @@ struct AppProviderClient: ProviderClient {
             guard AppChatGPTConfiguration.enabled else { return AsyncThrowingStream { $0.finish(throwing:RMError.unavailable) } }
             return chatGPT.stream(request)
         }
-        return request.profile.preset == .apple ? apple.stream(request) : cloud.stream(request)
+        if request.profile.preset == .apple { return apple.stream(request) }
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    try await access.require(request.profile)
+                    for try await event in cloud.stream(request) { continuation.yield(event) }
+                    continuation.finish()
+                } catch { continuation.finish(throwing:error) }
+            }
+            continuation.onTermination = { @Sendable _ in task.cancel() }
+        }
     }
     func catalog(_ profile: ProviderProfile) async throws -> [ModelMetadata] {
+        try await access.require(profile)
         if profile.usesChatGPT { guard AppChatGPTConfiguration.enabled else { throw RMError.unavailable }; return try await chatGPT.catalog(profile) }
         return profile.preset == .apple ? await apple.catalog() : try await cloud.catalog(profile)
     }

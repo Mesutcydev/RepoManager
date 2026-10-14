@@ -210,7 +210,7 @@ public actor AgentAPI {
             return response
         } catch {
             let e = error as? RMError ?? .invalidInput
-            let code = e == .authentication ? 401 : e == .forbidden ? 403 : e == .rateLimited ? 429 : e == .staleReview || e == .conflict ? 409 : 400
+            let code = e == .authentication ? 401 : e == .forbidden || e == .proRequired ? 403 : e == .rateLimited ? 429 : e == .staleReview || e == .conflict ? 409 : 400
             return APIResponse(status:code,json:.object(["error":.object(["type":.string(e.rawValue),"message":.string(e.localizedDescription)])]))
         }
     }

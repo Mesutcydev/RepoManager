@@ -3,7 +3,7 @@ import Foundation
 public enum RMError: String, Error, LocalizedError, Sendable {
     case locked, missingKey, corruptRecord, invalidInput, insecureURL, forbidden, staleReview,
          cancelled, tooLarge, unsupported, connection, authentication, upstream, rateLimited,
-         uncertainWrite, conflict, unavailable, consentRequired, noProvider
+         uncertainWrite, conflict, unavailable, consentRequired, noProvider, proRequired
     public var errorDescription: String? {
         switch self {
         case .locked: "Unlock the device to access Repo Manager."
@@ -24,7 +24,8 @@ public enum RMError: String, Error, LocalizedError, Sendable {
         case .conflict: "The remote branch or target advanced. Your draft is retained."
         case .unavailable: "This capability is unavailable for this account or device."
         case .consentRequired: "Review the destination disclosure before sending content."
-        case .noProvider: "Configure an API provider and select a model first."
+        case .noProvider: "Choose a provider and select a model first."
+        case .proRequired: "This API provider requires Repo Manager Pro. Open Providers to purchase or restore the one-time unlock. ChatGPT connection and Apple Intelligence remain included."
         }
     }
 }

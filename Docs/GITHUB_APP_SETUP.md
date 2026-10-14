@@ -64,7 +64,7 @@ Access/refresh tokens remain in one atomic nonsynchronizing device-only Keychain
 
 ## Registration verification
 
-GitHub's public App API confirms the owner, App ID, client ID, slug, permissions and empty event subscriptions. A live unauthenticated device-code request succeeded with the trusted verification URL `https://github.com/login/device`; both codes were discarded in memory without printing, saving, authorizing or polling. This confirms device flow is enabled, but does not establish successful user sign-in, refresh or repository access. Evidence is recorded in `Docs/QA/GITHUB_APP_REGISTRATION.json`.
+GitHub's public App API confirms the owner, App ID, client ID, slug, permissions and empty event subscriptions. A live unauthenticated device-code request succeeded with the trusted verification URL `https://github.com/login/device`; both codes were discarded in memory without printing, saving, authorizing or polling. This confirms device flow is enabled, but does not establish successful user sign-in, refresh or repository access.
 
 ## Test your own installation
 

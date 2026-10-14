@@ -2,6 +2,20 @@ import Foundation
 import RepoManagerCore
 
 enum DevelopmentFixtures {
+    static var pro: Bool {
+        #if DEBUG
+        enabled && ProcessInfo.processInfo.arguments.contains("--pro-fixtures")
+        #else
+        false
+        #endif
+    }
+    static var proOwned: Bool {
+        #if DEBUG
+        pro && ProcessInfo.processInfo.arguments.contains("--pro-owned-fixtures")
+        #else
+        false
+        #endif
+    }
     static var chatGPTPairing: Bool {
         #if DEBUG
         enabled && ProcessInfo.processInfo.arguments.contains("--chatgpt-pairing-fixtures")

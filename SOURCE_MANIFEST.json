@@ -163,7 +163,7 @@
     "Tests/NativeSecurity/RepoManagerPro.storekit": "ec486ab4329188a521e6e142fdfb4ee89dc399bc604d01ffb971da63234b6130",
     "Tests/NativeSecurity/TLSAndKeychainTests.swift": "88666702fefb7d910b6d08dc74fed1b092b3b2dcf2af2d6f920d59db5ee7bffc",
     "Tests/UITests/RepoManagerFlows.swift": "9a954adacde9393269280e5bec4af31ffe7fe00024a396c1d7d81ac671df2d2d",
-    "project.yml": "6c7cdb2942a4fe43f0cefe6f631cac3cad8499808a92fb5ceaa26de37b7f514f",
+    "project.yml": "0ffbeab5fc317f16f16aff0fcd9e0e24c20a16f2be1dc7acc8a3199f6fdfb980",
     "scripts/generate_contracts.py": "df04001bb5abced27d893622e8696af9898979370ede625814d6e66b0876f1b7",
     "scripts/prepare_open_source.py": "7aa5a60e15d660a1626cb256cc3b71caf1284bf6c76efe331a3e98375625c223",
     "scripts/validate_chatgpt_configuration.sh": "7162d966b2e342272cd8cd67742389f0e6377d2b719a03751f3b5ccc60624dce",

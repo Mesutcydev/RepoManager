@@ -3,6 +3,7 @@ import RepoManagerUI
 import RepoManagerCore
 
 struct ModelConfigurationView:View {
+    @Environment(\.locale) private var locale
     @Binding var metadata:ModelMetadata
     let profile:ProviderProfile
     @State private var context = ""; @State private var output = ""; @State private var inputPrice = ""; @State private var outputPrice = ""
@@ -43,8 +44,8 @@ struct ModelConfigurationView:View {
             if applied { Label("Configuration applied. Save the provider to keep these settings.",systemImage:"checkmark.circle").font(RMType.meta).foregroundStyle(RMPalette.accentText) }
         }.navigationTitle("Model settings").onAppear {
             guard !initialized else { return }; initialized = true
-            context = metadata.contextTokens.map(String.init) ?? ""; output = metadata.outputTokens.map(String.init) ?? ""
-            inputPrice = metadata.inputCostPerMillion.map { String($0) } ?? ""; outputPrice = metadata.outputCostPerMillion.map { String($0) } ?? ""
+            context = metadata.contextTokens.map { $0.formatted(.number.grouping(.never).locale(locale)) } ?? ""; output = metadata.outputTokens.map { $0.formatted(.number.grouping(.never).locale(locale)) } ?? ""
+            inputPrice = metadata.inputCostPerMillion.map { $0.formatted(.number.grouping(.never).precision(.significantDigits(1...17)).locale(locale)) } ?? ""; outputPrice = metadata.outputCostPerMillion.map { $0.formatted(.number.grouping(.never).precision(.significantDigits(1...17)).locale(locale)) } ?? ""
             protocolOverride = metadata.format
             if let value = metadata.reasoning { customReasoning = true; capability = value }
             else { capability = ReasoningPolicy.capabilities(profile:profile,model:metadata.id) }
@@ -52,11 +53,11 @@ struct ModelConfigurationView:View {
     }
     private func apply() {
         do {
-            func tokens(_ value:String) throws -> Int? { if value.isEmpty { return nil }; guard let n = Int(value),n > 0,n <= 2_000_000 else { throw RMError.invalidInput }; return n }
-            func price(_ value:String) throws -> Double? { if value.isEmpty { return nil }; guard let n = Double(value),n.isFinite,n >= 0,n <= 10000 else { throw RMError.invalidInput }; return n }
+            func tokens(_ value:String) throws -> Int? { if value.isEmpty { return nil }; guard let n = try? Int(value,format:.number.locale(locale),lenient:false),n > 0,n <= 2_000_000 else { throw RMError.invalidInput }; return n }
+            func price(_ value:String) throws -> Double? { if value.isEmpty { return nil }; guard let n = try? Double(value,format:.number.locale(locale),lenient:false),n.isFinite,n >= 0,n <= 10000 else { throw RMError.invalidInput }; return n }
             var copy = metadata; copy.contextTokens = try tokens(context); copy.outputTokens = try tokens(output)
             copy.inputCostPerMillion = try price(inputPrice); copy.outputCostPerMillion = try price(outputPrice)
             copy.format = protocolOverride; copy.reasoning = customReasoning ? capability : nil; metadata = copy; error = nil; applied = true
-        } catch { applied = false; self.error = "Enter valid limits and prices. Values were not changed." }
+        } catch { applied = false; self.error = String(localized:"Enter valid limits and prices. Values were not changed.") }
     }
 }

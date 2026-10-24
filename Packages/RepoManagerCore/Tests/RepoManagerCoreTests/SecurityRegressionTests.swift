@@ -166,11 +166,11 @@ private actor PollIntervals {
         }
         try await vault.wipeRecords(); #expect(try secrets.read("device-vault") == nil)
         try await vault.save("after explicit wipe",id:"new-record")
-        let inbox = root.appendingPathComponent("inbox"); try SharedInbox.prepare(root:inbox,secrets:secrets)
-        let e = try SharedInbox.encrypt(SharePayload(text:canary,name:"native"),publicKey:BoundedFile.read(inbox.appendingPathComponent("public-key"),limit:32))
+        let inbox = root.appendingPathComponent("inbox"); try SharedInbox.prepare(root:inbox,secrets:secrets,shared:secrets)
+        let e = try SharedInbox.encrypt(SharePayload(text:canary,name:"native"),publicKey:SharedInbox.recipientKey(shared:secrets))
         let target = inbox.appendingPathComponent("entry.rminbox"),cipher = try JSONEncoder().encode(e); try cipher.write(to:target)
         try secrets.delete("share-inbox-private-key")
-        #expect(throws:RMError.missingKey) { try SharedInbox.prepare(root:inbox,secrets:secrets) }
+        #expect(throws:RMError.missingKey) { try SharedInbox.prepare(root:inbox,secrets:secrets,shared:secrets) }
         #expect(throws:RMError.missingKey) { try SharedInbox.receive(root:inbox,secrets:secrets) }
         #expect(try Data(contentsOf:target) == cipher)
     }
@@ -238,4 +238,10 @@ private actor PollIntervals {
     }
     @Test(arguments:["192.0.2.1","198.51.100.1","203.0.113.1","3fff::1","3fff:f00::1"]) func documentationNetworksAreNotDestinations(_ value:String) { #expect(!URLPolicy.isPublicAddress(value)) }
     @Test(arguments:["192.2.1.1","198.51.99.1","203.0.112.1"]) func adjacentPublicRangesRemainAvailable(_ value:String) { #expect(URLPolicy.isPublicAddress(value)) }
+    @Test func providerCredentialIsBoundToItsEndpoint() {
+        let stored = ProviderCredential.encode("key-B",endpoint:"https://b.example.com/v1")
+        #expect(ProviderCredential.decode(stored,endpoint:"https://b.example.com/v1") == "key-B")
+        #expect(ProviderCredential.decode(stored,endpoint:"https://a.example.com/v1") == nil)
+        #expect(ProviderCredential.decode(Data("legacy-key".utf8),endpoint:"https://a.example.com/v1") == "legacy-key")
+    }
 }

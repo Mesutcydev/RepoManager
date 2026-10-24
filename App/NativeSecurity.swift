@@ -5,13 +5,13 @@ import UIKit
 
 struct AppleAuthenticator: NativeAuthenticator {
     func authenticate(action: String, target: String) async throws -> Bool {
-        let context = LAContext(); context.localizedCancelTitle = "Cancel"
+        let context = LAContext(); context.localizedCancelTitle = String(localized:"Cancel")
         var error: NSError?
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication,error:&error) else { throw RMError.unavailable }
         let authentication = AuthenticationContext(context)
         return try await withTaskCancellationHandler {
             try Task.checkCancellation()
-            let approved = try await context.evaluatePolicy(.deviceOwnerAuthentication,localizedReason:"Approve \(action.replacingOccurrences(of:"_",with:" ")) for \(target)")
+            let approved = try await context.evaluatePolicy(.deviceOwnerAuthentication,localizedReason:String(localized:"Approve \(action.contains("_") ? RMLocalization.fieldName(action) : action) for \(target)"))
             try Task.checkCancellation(); return approved
         } onCancel: { authentication.invalidate() }
     }

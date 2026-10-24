@@ -55,12 +55,12 @@ public struct RMSplashScreen: View {
                 RMWordmark().foregroundStyle(RMBrand.ceramic).opacity(named ? 1 : 0).accessibilityHidden(true)
                     .offset(y:reduced || named ? 0 : 4)
                 if sequenceComplete && !ready {
-                    Text("Opening your workspace…").font(.caption).foregroundStyle(RMBrand.ceramic.opacity(0.6))
+                    Text("Opening your workspace…", bundle: .module).font(.caption).foregroundStyle(RMBrand.ceramic.opacity(0.6))
                         .transition(.opacity)
                 }
             }.frame(maxWidth:.infinity,maxHeight:.infinity).offset(y:-20).opacity(leaving ? 0 : 1)
         }.background(RMBrand.canvas.ignoresSafeArea()).colorScheme(.dark)
-            .accessibilityElement(children:.ignore).accessibilityLabel("Repo Manager is opening your encrypted workspace")
+            .accessibilityElement(children:.ignore).accessibilityLabel(Text("Repo Manager is opening your encrypted workspace", bundle: .module))
             .accessibilityIdentifier("launch.brand")
             .task { await enter() }
             .task(id:ready && sequenceComplete) { await leaveIfReady() }

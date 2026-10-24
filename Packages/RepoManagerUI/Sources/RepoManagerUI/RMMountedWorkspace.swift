@@ -9,23 +9,29 @@ struct RMMountedWorkspace: UIViewControllerRepresentable {
     let content: AnyView; let visible: Bool; let interactive: Bool
     @Environment(\.rmAppearance) private var appearance
     @Environment(\.layoutDirection) private var direction
+    @Environment(\.locale) private var locale
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.rmMotionIsReduced) private var reduced
     func makeUIViewController(context:Context) -> RetainedWorkspaceController {
-        RetainedWorkspaceController(content:content,state:RetainedWorkspaceState(visible:visible,interactive:interactive,appearance:appearance,direction:direction,typeSize:typeSize,reduced:reduced))
+        RetainedWorkspaceController(content:content,state:RetainedWorkspaceState(visible:visible,interactive:interactive,appearance:appearance,direction:direction,locale:locale,typeSize:typeSize,reduced:reduced))
     }
     func updateUIViewController(_ controller:RetainedWorkspaceController,context:Context) {
         controller.state.visible = visible; controller.state.interactive = interactive; controller.state.appearance = appearance
-        controller.state.direction = direction; controller.state.typeSize = typeSize
+        controller.state.direction = direction; controller.state.locale = locale; controller.state.typeSize = typeSize
         controller.state.reduced = reduced; controller.applyVisibility()
+    }
+    func sizeThatFits(_ proposal:ProposedViewSize,uiViewController:RetainedWorkspaceController,context:Context) -> CGSize? {
+        guard let width = proposal.width,let height = proposal.height,width.isFinite,height.isFinite else { return nil }
+        return CGSize(width:width,height:height)
     }
 }
 @MainActor @Observable final class RetainedWorkspaceState {
     var visible: Bool; var interactive: Bool; var appearance: RMAppearancePreference; var direction: LayoutDirection
     var typeSize: DynamicTypeSize; var reduced: Bool
-    init(visible:Bool,interactive:Bool,appearance:RMAppearancePreference,direction:LayoutDirection,typeSize:DynamicTypeSize,reduced:Bool) {
+    var locale: Locale
+    init(visible:Bool,interactive:Bool,appearance:RMAppearancePreference,direction:LayoutDirection,locale:Locale,typeSize:DynamicTypeSize,reduced:Bool) {
         self.visible = visible; self.interactive = interactive; self.appearance = appearance; self.direction = direction
-        self.typeSize = typeSize; self.reduced = reduced
+        self.locale = locale; self.typeSize = typeSize; self.reduced = reduced
     }
 }
 private struct RetainedWorkspaceRoot: View {
@@ -33,6 +39,7 @@ private struct RetainedWorkspaceRoot: View {
     var body: some View {
         content.environment(\.rmWorkspaceVisible,state.visible && state.interactive).environment(\.rmAppearance,state.appearance)
             .environment(\.layoutDirection,state.direction).environment(\.dynamicTypeSize,state.typeSize)
+            .environment(\.locale,state.locale)
             .accessibilityHidden(!state.visible || !state.interactive).allowsHitTesting(state.visible && state.interactive)
     }
 }
@@ -47,10 +54,11 @@ private struct RetainedWorkspaceRoot: View {
     }
     required init?(coder:NSCoder) { nil }
     override func viewDidLoad() {
-        super.viewDidLoad(); view.backgroundColor = .clear; viewport.backgroundColor = .clear; viewport.clipsToBounds = true
+        super.viewDidLoad(); view.backgroundColor = .clear; view.clipsToBounds = true; viewport.backgroundColor = .clear; viewport.clipsToBounds = true
         view.addSubview(viewport); viewport.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([viewport.leadingAnchor.constraint(equalTo:view.leadingAnchor),viewport.trailingAnchor.constraint(equalTo:view.trailingAnchor),viewport.topAnchor.constraint(equalTo:view.topAnchor),viewport.bottomAnchor.constraint(equalTo:view.bottomAnchor)])
-        host.view.translatesAutoresizingMaskIntoConstraints = false; host.view.backgroundColor = .clear
+        host.sizingOptions = []
+        host.view.translatesAutoresizingMaskIntoConstraints = false; host.view.backgroundColor = .clear; host.view.clipsToBounds = true
         applyVisibility()
     }
     func applyVisibility() {

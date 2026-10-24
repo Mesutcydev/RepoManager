@@ -8,17 +8,18 @@ struct ProvidersView: View {
     @State private var removing: ProviderProfile?
     @State private var refreshing = Set<UUID>()
     @State private var proPresented = false
+    @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment:.leading,spacing:RMLayout.groupGap) {
-                    RMPageHeading("Providers",detail:"Each chat uses one provider and model. Credentials stay in Keychain.") {
+                    RMPageHeading(String(localized:"Providers"),detail:String(localized:"Each chat uses one provider and model. Credentials stay in Keychain.")) {
                         Button { choosing = true } label: { Image(systemName:"plus") }.rmIconButton().accessibilityLabel("Add provider")
                     }
                     if model.pro.enabled {
                         RMCard {
                             Button { proPresented = true } label: {
-                                RMRow("Repo Manager Pro",detail:model.pro.unlocked ? "API providers unlocked" : "One-time unlock for API providers and custom endpoints",symbol:"key.horizontal",accessory:.chevron)
+                                RMRow("Repo Manager Pro",detail:model.pro.unlocked ? String(localized:"API providers unlocked") : String(localized:"One-time unlock for API providers and custom endpoints"),symbol:"key.horizontal",accessory:.chevron)
                             }.buttonStyle(RMPressButtonStyle()).accessibilityIdentifier("pro.manage")
                         }
                     }
@@ -37,27 +38,35 @@ struct ProvidersView: View {
                                 RMRow(profile.title,detail:ProviderMark.destination(profile),accessory:.chevron) { ProviderMark(profile:profile) } trailing: { EmptyView() }
                             }.buttonStyle(RMPressButtonStyle()).accessibilityHint("Edit profile")
                             // Status line: consent and catalog size, then the card's two actions.
-                            HStack(spacing:RMLayout.rowGap) {
-                                Label(profile.usesChatGPT ? (connected ? "Using ChatGPT plan" : "Sign-in needed") : (allowed ? "Allowed" : "Consent needed"),systemImage:allowed && (!profile.usesChatGPT || connected) ? "checkmark.shield.fill" : "exclamationmark.circle")
+                            (typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment:.leading,spacing:RMLayout.elementGap)) : AnyLayout(HStackLayout(spacing:RMLayout.rowGap))) {
+                              (typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment:.leading,spacing:RMLayout.unit)) : AnyLayout(HStackLayout(spacing:RMLayout.rowGap))) {
+                                Label(profile.usesChatGPT ? (connected ? String(localized:"Using ChatGPT plan") : String(localized:"Sign-in needed")) : (allowed ? String(localized:"Allowed") : String(localized:"Consent needed")),systemImage:allowed && (!profile.usesChatGPT || connected) ? "checkmark.shield.fill" : "exclamationmark.circle")
                                     .foregroundStyle(allowed ? RMPalette.accentText : RMPalette.secondary)
-                                Text(profile.models.count == 1 ? "1 model" : "\(profile.models.count) models").foregroundStyle(RMPalette.secondary)
-                                Spacer(minLength:0)
+                                    .fixedSize(horizontal:false,vertical:true)
+                                Text(profile.models.count == 1 ? String(localized:"1 model") : String(localized:"\(profile.models.count) models")).foregroundStyle(RMPalette.secondary)
+                                    .fixedSize(horizontal:false,vertical:true)
+                              }
+                              if !typeSize.isAccessibilitySize { Spacer(minLength:0) }
+                              HStack(spacing:RMLayout.rowGap) {
+                                if typeSize.isAccessibilitySize { Spacer(minLength:0) }
                                 Button { refresh(profile) } label: {
                                     if refreshing.contains(profile.id) { ProgressView().controlSize(.small) } else { Image(systemName:"arrow.clockwise") }
                                 }.disabled(refreshing.contains(profile.id) || !allowed || (profile.usesChatGPT && !connected))
                                     .accessibilityLabel("Refresh catalog for \(profile.title)")
                                 Menu { Button("Remove provider",systemImage:"trash",role:.destructive) { removing = profile } } label: { Image(systemName:"ellipsis") }
                                     .accessibilityLabel("Actions for \(profile.title)")
+                              }
                             }
                             .font(RMType.label).labelStyle(RMCompactLabelStyle())
                             .buttonStyle(RMInlineIconButtonStyle())
                             .padding(.leading,RMLayout.cardInset).padding(.trailing,RMLayout.cardInset - RMLayout.inlineIconOutset)
+                            .padding(.vertical,typeSize.isAccessibilitySize ? RMLayout.elementGap : 0)
                             .frame(minHeight:RMLayout.controlLarge)
                         }
                     }
                     if !model.data.providers.isEmpty {
                         RMCard {
-                            Button { comparing = true } label: { RMRow("Compare providers",detail:"Run one prompt across providers and see time, usage, and cost.",symbol:"chart.bar",accessory:.chevron) }
+                            Button { comparing = true } label: { RMRow(String(localized:"Compare providers"),detail:String(localized:"Run one prompt across providers and see time, usage, and cost."),symbol:"chart.bar",accessory:.chevron) }
                                 .buttonStyle(RMPressButtonStyle())
                         }
                     }
@@ -96,12 +105,12 @@ struct ProviderPresetChooser: View {
             ScrollView {
                 VStack(alignment:.leading,spacing:RMLayout.groupGap) {
                     if AppChatGPTConfiguration.enabled,query.isEmpty || "ChatGPT".localizedCaseInsensitiveContains(query) {
-                        RMCard("Use your ChatGPT plan") {
+                        RMCard(String(localized:"Use your ChatGPT plan")) {
                             Button {
                                 var profile = ProviderProfile(preset:.openAI,title:"ChatGPT"); profile.authentication = .chatGPT
                                 editor = profile
                             } label: {
-                                RMRow("ChatGPT",detail:"Connect an eligible Plus or Pro account",symbol:"person.crop.circle",accessory:.chevron)
+                                RMRow("ChatGPT",detail:String(localized:"Connect an eligible Plus or Pro account"),symbol:"person.crop.circle",accessory:.chevron)
                             }.buttonStyle(RMPressButtonStyle()).accessibilityIdentifier("provider.chatgpt")
                         }
                     }
@@ -143,23 +152,24 @@ struct ProviderPresetChooser: View {
 /// Presets grouped by where requests go: this device, a hosted API, or your own server.
 private enum PresetGroup: CaseIterable {
     case apple, hosted, custom
-    var title: String { switch self { case .apple: "On this device"; case .hosted: "Hosted APIs"; case .custom: "Your endpoint" } }
+    var title: String { switch self { case .apple: String(localized:"On this device"); case .hosted: String(localized:"Hosted APIs"); case .custom: String(localized:"Your endpoint") } }
     func contains(_ preset:ProviderPreset) -> Bool {
         switch self { case .apple: preset == .apple; case .custom: preset == .custom; case .hosted: preset != .apple && preset != .custom }
     }
     func detail(_ preset:ProviderPreset) -> String {
         switch self {
-        case .apple: "On device or Private Cloud Compute"
-        case .custom: "Any OpenAI-compatible HTTPS endpoint"
-        case .hosted: URL(string:preset.endpoint)?.host ?? "Use your API key"
+        case .apple: String(localized:"On device or Private Cloud Compute")
+        case .custom: String(localized:"Any OpenAI-compatible HTTPS endpoint")
+        case .hosted: URL(string:preset.endpoint)?.host ?? String(localized:"Use your API key")
         }
     }
 }
 /// Plain 44-pt icon targets for actions inside a card, where glass would stack on glass.
 struct RMInlineIconButtonStyle: ButtonStyle {
+    @ScaledMetric(relativeTo:.body) private var glyphSize: CGFloat = 17
     @Environment(\.isEnabled) private var isEnabled
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(RMType.body.weight(.medium))
+        configuration.label.font(.system(size:min(glyphSize,RMLayout.glyphMaximum),weight:.medium))
             .foregroundStyle(isEnabled ? RMPalette.text : RMPalette.secondary)
             .frame(width:RMLayout.minimumHit,height:RMLayout.minimumHit).contentShape(Rectangle())
             .opacity(configuration.isPressed ? 0.5 : 1)
@@ -205,7 +215,7 @@ struct ProviderEditor: View {
                 }
                 }
                 if saving { ProgressView("Saving provider…") }
-            }.navigationTitle(initial.preset == .apple ? "Apple Intelligence" : "Provider settings").navigationBarTitleDisplayMode(.inline)
+            }.navigationTitle(initial.preset == .apple ? "Apple Intelligence" : String(localized:"Provider settings")).navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement:.cancellationAction) { Button("Cancel") { key = ""; dismiss() } }
                 ToolbarItem(placement:.confirmationAction) { Button("Save") { save() }.disabled(saving || !consent || !validEndpoint || title.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty) }
@@ -236,7 +246,7 @@ struct ProviderEditor: View {
 }
 struct ProviderComparisonView: View {
     @Bindable var model: AppModel; @Environment(\.dismiss) private var dismiss
-    @State private var prompt = "Explain a safe GitHub pull request review workflow in five steps."
+    @State private var prompt = String(localized:"Explain a safe GitHub pull request review workflow in five steps.")
     @State private var selected = Set<UUID>(); @State private var results: [UUID:String] = [:]
     @State private var active = false; @State private var task: Task<Void,Never>?
     var body: some View {
@@ -249,7 +259,7 @@ struct ProviderComparisonView: View {
                         if let result = results[profile.id] { Text(result).font(RMType.meta).textSelection(.enabled) }
                     }
                 }
-                Button(active ? "Stop comparison" : "Run selected comparisons") { if active { task?.cancel() } else { compare() } }
+                Button(active ? String(localized:"Stop comparison") : String(localized:"Run selected comparisons")) { if active { task?.cancel() } else { compare() } }
                     .rmProminentButton().disabled(!active && (selected.isEmpty || prompt.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty))
                 if active { ProgressView("Comparing providers…") }
             }.navigationTitle("Provider comparison").toolbar { Button("Done") { task?.cancel(); dismiss() } }
@@ -274,8 +284,8 @@ struct ProviderComparisonView: View {
                         switch event { case .text(let t): text += t; guard text.utf8.count <= 1024*1024 else { throw RMError.tooLarge }; case .usage(let u): usage = try reported.update(u); default: break }
                     }
                     try Task.checkCancellation(); guard !model.locked,model.lifecycleID == lifecycle else { throw RMError.cancelled }; usage = reported.finishRound()
-                    var result = text+"\n\nElapsed: \(Date().timeIntervalSince(started).formatted(.number.precision(.fractionLength(2)))) s\nUsage: \(usage?.input.map(String.init) ?? "unknown") in, \(usage?.output.map(String.init) ?? "unknown") out"
-                    if let cost = MessagePricing(metadata:item,format:ProviderRouting.format(profile:profile,model:item.id))?.estimateUSD(usage) { result += "\nEstimated cost: \(cost.formatted(.currency(code:"USD").precision(.fractionLength(2...6))))" }
+                    var result = text+String(localized:"\n\nElapsed: \(Date().timeIntervalSince(started).formatted(.number.precision(.fractionLength(2)))) s\nUsage: \(usage?.input.map(String.init) ?? "unknown") in, \(usage?.output.map(String.init) ?? "unknown") out")
+                    if let cost = MessagePricing(metadata:item,format:ProviderRouting.format(profile:profile,model:item.id))?.estimateUSD(usage) { result += String(localized:"\nEstimated cost: \(cost.formatted(.currency(code:"USD").precision(.fractionLength(2...6))))") }
                     results[profile.id] = result
                 } catch { if !model.locked,model.lifecycleID == lifecycle { results[profile.id] = ProviderFailure.safe(error).localizedDescription; if (error as? ChatGPTServiceError)?.requiresUsageManagement == true { model.showProviderError(error) } } }
             }

@@ -6,7 +6,7 @@ import RepoManagerUI
     @State private var model = AppModel()
     init() { BackgroundNetworking.shared.register() }
     var body: some Scene {
-        WindowGroup { RootView(model:model) }
+        WindowGroup { RootView(model:model).rmAdaptiveBarsEnvironment() }
         .commands {
             CommandGroup(replacing:.newItem) { Button("New chat") { model.newChat() }.keyboardShortcut("n") }
             CommandMenu("Repo Manager") {
@@ -37,7 +37,7 @@ struct RootView: View {
             else if model.locked {
                 ContentUnavailableView {
                     Label("Encrypted workspace locked",systemImage:"lock.shield")
-                } description: { Text(model.error ?? "Unlock your device to continue.") }
+                } description: { Text(model.error ?? String(localized:"Unlock your device to continue.")) }
                   actions: {
                       Button("Try unlocking") { Task { await model.load() } }
                       Button("Recovery options") { recovery = true }
@@ -47,7 +47,10 @@ struct RootView: View {
             } else {
                 // ponytail: recents re-sort on each render; cache in AppModel if history grows into the thousands.
                 RMWorkbench(selection:$model.selection,
-                            recents:model.data.conversations.filter { !$0.archived }.sorted { $0.modified > $1.modified }.prefix(8)
+                            recents:model.data.conversations.filter { !$0.archived }.sorted {
+                                if $0.pinned != $1.pinned { return $0.pinned }
+                                return $0.modified > $1.modified
+                            }.prefix(8)
                                 .map { RMRecentChat(id:$0.id.uuidString,title:$0.title,detail:$0.repository?.name ?? $0.modified.formatted(.relative(presentation:.named))) },
                             currentRecentID:model.selectedConversationID?.uuidString,
                             openRecent:{ if let id = UUID(uuidString:$0) { model.selectChat(id) } },
@@ -116,12 +119,12 @@ struct RootView: View {
         while let next = top.presentedViewController, !next.isBeingDismissed { top = next }
         let alert = UIAlertController(title:"Repo Manager",message:message,preferredStyle:.alert)
         if manageUsage { addUsageAction(to:alert,dismissed:dismissed) }
-        alert.addAction(UIAlertAction(title:"OK",style:.default) { _ in dismissed() })
+        alert.addAction(UIAlertAction(title:String(localized:"OK"),style:.default) { _ in dismissed() })
         top.present(alert,animated:true); current = alert
     }
     private static func addUsageAction(to alert:UIAlertController,dismissed:@escaping () -> Void) {
-        guard !alert.actions.contains(where:{ $0.title == "Manage usage" }) else { return }
-        let action = UIAlertAction(title:"Manage usage",style:.default) { _ in
+        guard !alert.actions.contains(where:{ $0.title == String(localized:"Manage usage") }) else { return }
+        let action = UIAlertAction(title:String(localized:"Manage usage"),style:.default) { _ in
             UIApplication.shared.open(ChatGPTAuth.usageURL); dismissed()
         }
         alert.addAction(action); alert.preferredAction = action

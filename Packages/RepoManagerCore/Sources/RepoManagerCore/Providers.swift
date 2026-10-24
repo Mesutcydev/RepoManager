@@ -41,7 +41,12 @@ public struct ProviderEventDecoder: Sendable {
     private var thinkingBlocks: [Int:[String:JSON]] = [:]
     private var signedParts: [JSON] = []
     private var reasoningDetails: [String:[String:JSON]] = [:]
-    private var responseReasoning: [JSON] = []
+    private var responseItems: [Int: JSON] = [:]
+    private var responsePositions: [String:Int] = [:]
+    private var responseCallItems: [String:JSON] = [:]
+    private var responseCallOrder: [String] = []
+    private var responseContent: [String:String] = [:]
+    private var lastTextOutput: Int?
     public private(set) var completed = false
     public var format: WireFormat
     public init(format: WireFormat) { self.format = format }
@@ -84,32 +89,74 @@ public struct ProviderEventDecoder: Sendable {
                     completed = true
                     if reason == "tool_calls" { ready.formUnion(partials.keys); events += try finishTools() }
                     if !reasoningDetails.isEmpty { events.append(.providerState(.object(["reasoning_details":.array(reasoningDetails.keys.sorted().compactMap { reasoningDetails[$0].map(JSON.object) })]))) }
-                    events.append(.finish(reason))
+                    events.append(.finish(reason == "max_tokens" ? "length" : reason)) // one truncation word for every consumer
                 }
             }
         case .responses:
             let type = root["type"].string ?? frame.event
             switch type {
-            case "response.output_text.delta": if let t = root["delta"].string { events.append(.text(t)) }
-            case "response.reasoning_summary_text.delta": if let t = root["delta"].string { events.append(.reasoning(t)) }
+            case "response.output_text.delta", "response.refusal.delta":
+                if let text = root["delta"].string { events += try responseText(text,root:root,reasoning:false,snapshot:false) }
+            case "response.reasoning_summary_text.delta":
+                if let text = root["delta"].string { events += try responseText(text,root:root,reasoning:true,snapshot:false) }
+            case "response.output_text.done", "response.refusal.done":
+                if let text = root["text"].string ?? root["refusal"].string { events += try responseText(text,root:root,reasoning:false,snapshot:true) }
+            case "response.reasoning_summary_text.done":
+                if let text = root["text"].string { events += try responseText(text,root:root,reasoning:true,snapshot:true) }
+            case "response.content_part.done", "response.reasoning_summary_part.done":
+                let part = root["part"], reasoning = type == "response.reasoning_summary_part.done"
+                if let text = part["text"].string ?? part["refusal"].string,
+                   ["output_text","refusal","summary_text"].contains(part["type"].string ?? "") {
+                    events += try responseText(text,root:root,reasoning:reasoning,snapshot:true)
+                }
             case "response.output_item.added":
+                _ = responsePosition(root)
                 let item = root["item"]; if item["type"].string == "function_call" {
-                    partials[item["id"].string ?? ""] = Partial(id: item["call_id"].string ?? "", name: item["name"].string ?? "", arguments: item["arguments"].string ?? "")
+                    let key = responseCallKey(item)
+                    partials[key] = Partial(id: item["call_id"].string ?? "", name: item["name"].string ?? "", arguments: item["arguments"].string ?? "")
+                    responseCallItems[key] = item
+                    if !responseCallOrder.contains(key) { responseCallOrder.append(key) }
                 }
             case "response.function_call_arguments.delta":
                 let id = root["item_id"].string ?? ""; var p = partials[id] ?? Partial(); p.arguments += root["delta"].string ?? ""; partials[id] = p
+            case "response.function_call_arguments.done":
+                let key = root["item_id"].string ?? ""
+                guard var p = partials[key], !p.id.isEmpty,!p.name.isEmpty,let arguments = root["arguments"].string else { throw RMError.upstream }
+                p.arguments = arguments; partials[key] = p; ready.insert(key)
+                var fields = responseCallItems[key]?.object ?? [:]
+                fields["arguments"] = .string(arguments); fields["status"] = "completed"
+                responseItems[responsePosition(root)] = .object(fields)
             case "response.output_item.done":
-                if root["item"]["type"].string == "reasoning", root["item"]["encrypted_content"].string != nil { responseReasoning.append(root["item"]) }
-                let item = root["item"]; if item["type"].string == "function_call" {
-                    partials[item["id"].string ?? ""] = Partial(id: item["call_id"].string ?? "", name: item["name"].string ?? "", arguments: item["arguments"].string ?? "")
-                    ready.insert(item["id"].string ?? "")
-                }
+                let item = root["item"]
+                let index = responsePosition(root)
+                responseItems[index] = item
+                registerResponseCall(item)
+                events += try responseItemContent(item,index:index)
             case "response.completed", "response.incomplete":
                 let usage = root["response"]["usage"]
                 events.append(.usage(Usage(input:usage["input_tokens"].int,output:usage["output_tokens"].int,reasoning:usage["output_tokens_details"]["reasoning_tokens"].int)))
                 completed = true
-                if type == "response.completed" { events += try finishTools() }
-                if !responseReasoning.isEmpty { events.append(.providerState(.object(["responses":.array(responseReasoning)]))) }
+                if type == "response.completed" {
+                    // Native item IDs, phases, exact argument strings and order
+                    // belong to the stateless protocol, independently of UI text.
+                    // The terminal event may contain only metadata (output:[]).
+                    // Keep completed stream items, as build 10 did, and merge
+                    // authoritative terminal items without dropping tool calls.
+                    for (index,item) in (root["response"]["output"].array ?? []).enumerated() {
+                        let position = item["id"].string.flatMap { responsePositions[$0] } ?? index
+                        responseItems[position] = item
+                    }
+                    let positions = responseItems.keys.sorted()
+                    let items = positions.compactMap { responseItems[$0] }
+                    for position in positions { events += try responseItemContent(responseItems[position]!,index:position) }
+                    for item in items { registerResponseCall(item) }
+                    let replay = items.filter {
+                        ["message", "function_call"].contains($0["type"].string ?? "") ||
+                        $0["type"].string == "reasoning" && $0["encrypted_content"].string != nil
+                    }
+                    events += try finishTools(order: items.filter { $0["type"].string == "function_call" }.map { responseCallKey($0) } + responseCallOrder)
+                    if !replay.isEmpty { events.append(.providerState(.object(["responses_output": .array(replay)]))) }
+                }
                 events.append(.finish(type == "response.completed" ? "stop" : "length"))
             case "response.failed": throw RMError.upstream
             default: break
@@ -138,7 +185,7 @@ public struct ProviderEventDecoder: Sendable {
                 events.append(.usage(Usage(output: root["usage"]["output_tokens"].int)))
                 if let reason = root["delta"]["stop_reason"].string {
                     if reason == "tool_use" { events += try finishTools() }
-                    events.append(.finish(reason))
+                    events.append(.finish(reason == "max_tokens" ? "length" : reason))
                 }
             case "message_stop":
                 let blocks = thinkingBlocks.keys.sorted().compactMap { key -> JSON? in
@@ -171,9 +218,53 @@ public struct ProviderEventDecoder: Sendable {
         for p in partials.values { guard p.arguments.utf8.count <= 1024 * 1024 else { throw RMError.tooLarge } }
         return events
     }
-    private mutating func finishTools() throws -> [ChatEvent] {
+    private func responseCallKey(_ item: JSON) -> String { item["id"].string ?? item["call_id"].string ?? "" }
+    private mutating func responsePosition(_ root:JSON) -> Int {
+        let id = root["item_id"].string ?? root["item"]["id"].string
+        let next = root["item"].object != nil ? ((responsePositions.values.max() ?? -1)+1) : 0
+        let index = root["output_index"].int ?? id.flatMap { responsePositions[$0] } ?? next
+        if let id { responsePositions[id] = index }
+        return index
+    }
+    private mutating func responseText(_ text:String,root:JSON,reasoning:Bool,snapshot:Bool) throws -> [ChatEvent] {
+        let index = responsePosition(root),part = root[reasoning ? "summary_index" : "content_index"].int ?? 0
+        let key = "\(reasoning ? "reasoning" : "text"):\(index):\(part)", previous = responseContent[key] ?? ""
+        let delta:String
+        if snapshot {
+            if text.isEmpty { return [] }
+            guard text.utf8.starts(with:previous.utf8) else { throw RMError.upstream }
+            delta = String(decoding:text.utf8.dropFirst(previous.utf8.count),as:UTF8.self)
+        } else { delta = text }
+        guard !delta.isEmpty else { return [] }
+        guard previous.utf8.count+delta.utf8.count <= 1024*1024 else { throw RMError.tooLarge }
+        responseContent[key] = previous+delta
+        if reasoning { return [.reasoning(delta)] }
+        let separate = lastTextOutput != nil && lastTextOutput != index && !delta.hasPrefix("\n")
+        lastTextOutput = index
+        return [.text((separate ? "\n\n" : "")+delta)]
+    }
+    private mutating func responseItemContent(_ item:JSON,index:Int) throws -> [ChatEvent] {
+        let reasoning = item["type"].string == "reasoning"
+        guard reasoning || item["type"].string == "message" else { return [] }
+        var events:[ChatEvent] = []
+        for (partIndex,part) in (item[reasoning ? "summary" : "content"].array ?? []).enumerated() {
+            guard ["output_text","refusal","summary_text"].contains(part["type"].string ?? ""),
+                  let text = part["text"].string ?? part["refusal"].string else { continue }
+            let root:JSON = .object(["output_index":.number(Double(index)),reasoning ? "summary_index" : "content_index":.number(Double(partIndex))])
+            events += try responseText(text,root:root,reasoning:reasoning,snapshot:true)
+        }
+        return events
+    }
+    private mutating func registerResponseCall(_ item: JSON) {
+        guard item["type"].string == "function_call" else { return }
+        let key = responseCallKey(item)
+        partials[key] = Partial(id: item["call_id"].string ?? "", name: item["name"].string ?? "", arguments: item["arguments"].string ?? "")
+        ready.insert(key)
+        if !responseCallOrder.contains(key) { responseCallOrder.append(key) }
+    }
+    private mutating func finishTools(order: [String]? = nil) throws -> [ChatEvent] {
         var events: [ChatEvent] = []
-        for key in partials.keys.sorted() {
+        for key in order ?? partials.keys.sorted() {
             guard ready.contains(key), let p = partials[key], !emitted.contains(key), !p.name.isEmpty else { continue }
             let args = p.arguments.isEmpty ? JSON.object([:]) : try JSON.parse(Data(p.arguments.utf8))
             guard args.object != nil, p.name.count <= 100 else { throw RMError.invalidInput }
@@ -195,13 +286,21 @@ public enum ProviderWire {
         case .responses:
             let input = messages.flatMap { m -> [JSON] in
                 if m.role == .tool { return [.object(["type": "function_call_output", "call_id": .string(m.toolCallID ?? ""), "output": .string(m.text)])] }
-                var rows: [JSON] = m.providerContinuation?.payload(for:r)?["responses"].array ?? []
+                let state = m.providerContinuation?.payload(for: r)
+                if let native = state?["responses_output"].array, !native.isEmpty { return native }
+                // Build-11 and earlier history kept only encrypted reasoning,
+                // without the native following-item identities. Replay that
+                // older state as stateless content, as the desktop adapter does.
+                var rows: [JSON] = (state?["responses"].array ?? []).map { item in
+                    guard item["type"].string == "reasoning", var fields = item.object else { return item }
+                    fields["id"] = nil; return .object(fields)
+                }
                 if !m.text.isEmpty { rows.append(.object(["role": .string(m.role.rawValue), "content": .string(m.text)])) }
                 rows += m.calls.map { .object(["type": "function_call", "call_id": .string($0.id), "name": .string($0.name), "arguments": .string($0.arguments.pretty)]) }
                 return rows
             }
             var b: [String: JSON] = ["model": .string(r.model), "input": .array(input), "instructions": .string(system), "stream": true, "store": false, "max_output_tokens": .number(Double(r.outputBudget))]
-            if r.reasoningDecision?.kind == .openAI || r.reasoningDecision?.kind == .xAI { b["include"] = .array(["reasoning.encrypted_content"]) }
+            if r.profile.usesChatGPT || r.reasoningDecision?.kind == .openAI || r.reasoningDecision?.kind == .xAI { b["include"] = .array(["reasoning.encrypted_content"]) }
             if !r.tools.isEmpty { b["tools"] = .array(r.tools.map { .object(["type": "function", "name": .string($0.name), "description": .string($0.description), "parameters": $0.schema]) }) }
             if let decision = r.reasoningDecision { ReasoningPolicy.apply(decision,to:&b,format:r.profile.format) }
             if r.profile.usesChatGPT {
@@ -298,6 +397,21 @@ public enum ProviderWire {
         return request
     }
 }
+/// The Keychain item binds a credential to the endpoint it was entered for, so an interruption between the
+/// Keychain write and the profile flush can never deliver it to a different (stale or edited) endpoint.
+public enum ProviderCredential {
+    public static func account(_ id: UUID) -> String { "provider:\(id)" }
+    public static func encode(_ credential: String, endpoint: String) -> Data { Data("\(endpoint)\n\(credential)".utf8) }
+    public static func decode(_ data: Data, endpoint: String) -> String? {
+        guard let text = String(data: data, encoding: .utf8) else { return nil }
+        // ponytail: items saved before endpoint binding carry no newline (credentials reject "\n"); they rebind on next save.
+        guard let newline = text.firstIndex(of: "\n") else { return text }
+        return text[..<newline] == endpoint ? String(text[text.index(after: newline)...]) : nil
+    }
+    static func read(_ profile: ProviderProfile, from secrets: any SecretStore) throws -> String? {
+        try secrets.read(account(profile.id)).flatMap { decode($0, endpoint: profile.endpoint) }
+    }
+}
 public struct CloudProviderClient: ProviderClient {
     private let transport: any HTTPTransport; private let secrets: any SecretStore
     public init(transport: any HTTPTransport = SecureHTTPTransport(), secrets: any SecretStore = KeychainStore()) { self.transport = transport; self.secrets = secrets }
@@ -307,14 +421,16 @@ public struct CloudProviderClient: ProviderClient {
             let task = Task {
                 do {
                     guard !request.profile.usesChatGPT else { throw RMError.invalidInput }
-                    guard let data = try secrets.read("provider:\(request.profile.id)"), let key = String(data: data, encoding: .utf8) else { throw RMError.authentication }
+                    guard let key = try ProviderCredential.read(request.profile, from: secrets) else { throw RMError.authentication }
                     let http = try ProviderWire.request(request, key: key)
                     var parser = SSEParser(); var decoder = ProviderEventDecoder(format: request.profile.format)
                     for try await chunk in transport.stream(http, limit: 8 * 1024 * 1024) {
                         try Task.checkCancellation()
-                        for frame in try parser.feed(chunk) { for event in try decoder.decode(frame) { try StreamDelivery.yield(event,to:continuation) } }
+                        var packet: [ChatEvent] = []
+                        for frame in try parser.feed(chunk) { packet += try decoder.decode(frame) }
+                        for event in StreamDelivery.coalesced(packet) { try await StreamDelivery.send(event,to:continuation) }
                     }
-                    for frame in try parser.feed(Data(), final: true) { for event in try decoder.decode(frame) { try StreamDelivery.yield(event,to:continuation) } }
+                    for frame in try parser.feed(Data(), final: true) { for event in try decoder.decode(frame) { try await StreamDelivery.send(event,to:continuation) } }
                     guard decoder.completed else { throw RMError.connection }
                     continuation.finish()
                 } catch is CancellationError { continuation.finish(throwing:RMError.cancelled) }
@@ -326,7 +442,7 @@ public struct CloudProviderClient: ProviderClient {
     public func catalog(_ profile: ProviderProfile) async throws -> [ModelMetadata] {
         guard !profile.usesChatGPT else { throw RMError.invalidInput }
         guard profile.consentEndpoint == profile.endpoint else { throw RMError.consentRequired }
-        guard let base = URL(string: profile.endpoint), let key = try secrets.read("provider:\(profile.id)"), let token = String(data: key, encoding: .utf8) else { throw RMError.authentication }
+        guard let base = URL(string: profile.endpoint), let token = try ProviderCredential.read(profile, from: secrets) else { throw RMError.authentication }
         var results: [ModelMetadata] = []; var cursor: String?; var seen = Set<String>()
         for _ in 0..<20 {
             var query: [String: String] = [:]
@@ -358,28 +474,96 @@ public enum ContextBudget {
         guard request.inputBudget > 0, request.outputBudget > 0, cost <= request.inputBudget,
               request.messages.contains(where:{ $0.role == .user }) else { throw RMError.tooLarge }
     }
-    public static func prepare(_ request: RunRequest) -> RunRequest {
+    static func withModelLimits(_ request: RunRequest) -> RunRequest {
         var r = request
         if let m = r.profile.models.first(where: { $0.id == r.model }) {
             r.outputBudget = min(r.outputBudget, m.outputTokens ?? r.outputBudget)
             if let c = m.contextTokens { r.outputBudget = min(r.outputBudget, max(1, c / 3)); r.inputBudget = min(r.inputBudget, max(1, c - r.outputBudget - 512)) }
         }
+        return r
+    }
+    public static func prepare(_ request: RunRequest) -> RunRequest {
+        var r = withModelLimits(request)
         let toolCost = r.tools.reduce(0) { $0 + ToolSelection.cost($1) + 40 }
-        let systems = r.messages.filter { $0.role == .system }
-        var remaining = max(0, r.inputBudget - toolCost - systems.reduce(0) { $0 + estimate($1) })
-        var kept: [ChatMessage] = []
-        // Keep assistant tool calls together with all their results.
+        var systems = r.messages.filter { $0.role == .system }
+        let messageBudget = max(0, r.inputBudget - toolCost - systems.reduce(0) { $0 + estimate($1) })
+        // A turn includes its user request, resolved mentions, and every subsequent
+        // assistant/tool round. Never evict the active request after a large result.
         let history = r.messages.filter { $0.role != .system }
-        var groups: [[ChatMessage]] = []
+        var turns: [[ChatMessage]] = []
         for m in history {
-            if m.role == .tool && !groups.isEmpty { groups[groups.count-1].append(m) } else { groups.append([m]) }
+            let followsPrevious = m.role == .user && m.continuationOf.map { id in
+                turns.last?.contains(where: { $0.role == .user && $0.id == id }) == true
+            } == true
+            if turns.isEmpty || m.role == .user && turns.last?.last?.role != .user && !followsPrevious {
+                turns.append([m])
+            } else { turns[turns.count-1].append(m) }
         }
-        for group in groups.reversed() {
-            let cost = group.reduce(0) { $0 + estimate($1) }
-            if cost > remaining { break }; remaining -= cost; kept.insert(contentsOf: group, at: 0)
+        var active = turns.popLast() ?? []
+        var notice: ChatMessage?
+        var kept = compactToolResults(active, budget: messageBudget)
+        // Long audits can exhaust the budget with assistant text and call
+        // arguments alone. Evict complete earlier rounds, including native
+        // continuation state, while retaining the request and latest round.
+        // Never remove just one side of a function-call/result pair.
+        while kept.reduce(0, { $0 + estimate($1) }) > messageBudget - (notice.map(estimate) ?? 0) {
+            guard let first = active.firstIndex(where: { $0.role == .assistant }) else { break }
+            let later = active.indices.dropFirst(first+1)
+            let next = later.first(where: { active[$0].role == .assistant })
+                ?? (later.contains(where: { active[$0].role == .user }) ? active.endIndex : nil)
+            guard let next else { break }
+            // A continued task can span several user turns. Preserve every
+            // request while evicting a whole assistant/call-result group.
+            let requests = active[first..<next].filter { $0.role == .user }
+            active.replaceSubrange(first..<next, with: requests)
+            if !systems.contains(where: { $0.text == roundOmissionNotice }) {
+                notice = notice ?? ChatMessage(role: .system, text: roundOmissionNotice)
+            }
+            kept = compactToolResults(active, budget: messageBudget - (notice.map(estimate) ?? 0))
         }
+        var remaining = messageBudget - (notice.map(estimate) ?? 0) - kept.reduce(0) { $0 + estimate($1) }
+        // Older turns are optional; their calls and results must stay together.
+        for turn in turns.reversed() {
+            let cost = turn.reduce(0) { $0 + estimate($1) }
+            if cost > remaining { break }; remaining -= cost; kept.insert(contentsOf: turn, at: 0)
+        }
+        if let notice { systems.append(notice) }
         r.messages = systems + kept
         return r
+    }
+    private static let toolOmissionNotice = "\n[Untrusted tool output shortened to fit the context budget; coverage is incomplete. Request narrower paths or file ranges for omitted content.]"
+    private static let roundOmissionNotice = "Earlier tool rounds were omitted to fit the context budget. Their repository coverage is incomplete in this request. Base findings on the available evidence and disclose coverage gaps; do not infer omitted file contents."
+    private static func compactToolResults(_ messages: [ChatMessage], budget: Int) -> [ChatMessage] {
+        guard messages.reduce(0, { $0 + estimate($1) }) > budget else { return messages }
+        let indices = messages.indices.filter { messages[$0].role == .tool }
+        guard !indices.isEmpty else { return messages }
+        let fixedCost = messages.filter { $0.role != .tool }.reduce(0) { $0 + estimate($1) }
+        let fullCosts = indices.map { estimate(messages[$0]) }
+        let minimumCosts = indices.enumerated().map { offset, index in
+            var message = messages[index]; message.text = toolOmissionNotice
+            return min(fullCosts[offset], estimate(message))
+        }
+        var spare = budget - fixedCost - minimumCosts.reduce(0, +)
+        // Do not silently shorten instructions, user content or call arguments.
+        // If even explicit omission notices cannot fit, validation still fails.
+        guard spare >= 0 else { return messages }
+        var allocations = minimumCosts
+        let order = indices.indices.sorted { fullCosts[$0] - minimumCosts[$0] < fullCosts[$1] - minimumCosts[$1] }
+        for (position, offset) in order.enumerated() {
+            let extra = min(fullCosts[offset] - minimumCosts[offset], spare / (order.count - position))
+            allocations[offset] += extra; spare -= extra
+        }
+        var compacted = messages
+        for (offset, index) in indices.enumerated() where allocations[offset] < fullCosts[offset] {
+            let argumentBytes = messages[index].calls.reduce(0) { $0 + $1.arguments.encoded.count }
+            let textBytes = (allocations[offset] - 16) * 3 + 2 - argumentBytes
+            var prefix = messages[index].text.utf8.prefix(max(0, textBytes - toolOmissionNotice.utf8.count))
+            // Cutting a UTF-8 scalar in half must not introduce replacement bytes
+            // that overflow the allocation or damage a path in the result.
+            while String(bytes: prefix, encoding: .utf8) == nil { prefix = prefix.dropLast() }
+            compacted[index].text = String(decoding: prefix, as: UTF8.self) + toolOmissionNotice
+        }
+        return compacted
     }
     public static func estimate(_ m: ChatMessage) -> Int { (m.text.utf8.count + m.calls.reduce(0) { $0 + $1.arguments.encoded.count }) / 3 + 16 }
 }
@@ -401,7 +585,7 @@ public enum ToolSelection {
     public static func cost(_ definition:ToolDefinition) -> Int { (definition.schema.encoded.count+definition.name.utf8.count+definition.description.utf8.count)/3+40 }
     public static func select(_ definitions:[ToolDefinition],request:RunRequest) -> [ToolDefinition] {
         let effective = ContextBudget.prepare(request)
-        let budget = max(0,min(3000,effective.inputBudget/3))
+        let budget = max(0,min(8192,effective.inputBudget/3))
         let text = request.messages.suffix(6).map(\.text).joined(separator:" ").lowercased()
         let terms = text.split(whereSeparator:{ !$0.isLetter && !$0.isNumber && $0 != "_" }).map(String.init)
         let essential: Set<String> = ["find_tools","list_files","read_file","git_diff","repository_info","request_user_approval","write_file","replace_text","checkpoint","calculator","datetime"]

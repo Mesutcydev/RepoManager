@@ -107,7 +107,14 @@ public enum RMType {
 public enum RMAppearancePreference: String, CaseIterable, Identifiable, Sendable {
     case system, light, dark, oled
     public var id: String { rawValue }
-    public var title: String { self == .oled ? "OLED" : rawValue.capitalized }
+    public var title: String {
+        switch self {
+        case .system: String(localized:"System",bundle:.module)
+        case .light: String(localized:"Light",bundle:.module)
+        case .dark: String(localized:"Dark",bundle:.module)
+        case .oled: "OLED"
+        }
+    }
     public var symbol: String {
         switch self {
         case .system: return "circle.lefthalf.filled"

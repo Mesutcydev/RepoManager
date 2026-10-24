@@ -28,7 +28,8 @@ public_docs = ['CAPABILITIES.md', 'TOOL_CATALOG.md', 'REASONING.md', 'SPECIFICAT
                'PROVENANCE.json', 'DEPENDENCY_PROVENANCE.json', 'REFERENCE_BASELINE.json',
                'tool-catalog.json', 'openapi.json']
 public_scripts = ['validate_project.py', 'validate_github_configuration.sh',
-                  'validate_chatgpt_configuration.sh', 'generate_contracts.py', 'prepare_open_source.py']
+                  'validate_chatgpt_configuration.sh', 'verify_dependency_provenance.sh',
+                  'validate_localizations.py', 'generate_contracts.py', 'prepare_open_source.py']
 paths = {ROOT/name for name in single_files}
 paths.update(ROOT/'Docs'/name for name in public_docs)
 paths.update(ROOT/'scripts'/name for name in public_scripts)
@@ -61,7 +62,7 @@ manifest = {
     'prepared_on': args.date.isoformat(), 'license': 'MIT', 'app_price': 'Free',
     'public_repository': source_url,
     'publication_status': 'Repository URL declared; verify public access separately' if source_url else 'Prepared locally; not published',
-    'monetization_status': 'Optional $9.99 one-time Pro API-provider unlock prepared; rollout disabled pending access and App Store setup',
+    'monetization_status': 'Optional $9.99 one-time Pro for API-key providers/custom endpoints; ChatGPT always free; device Sandbox acceptance pending',
     'files': {name: hashlib.sha256(data).hexdigest() for name, data in sorted(entries.items())},
     'excluded': ['Git history', 'compiler/package caches', 'signing files', 'QA logs and screenshots',
                  'TestFlight receipts', 'App Store account/evidence files'],

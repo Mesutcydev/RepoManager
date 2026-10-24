@@ -53,13 +53,13 @@ public enum ChatGPTSignInError: String, Error, LocalizedError, Sendable {
     case invalidCallback, invalidIdentity, expired, declined, signedOut, planPermissionRequired, browserUnavailable
     public var errorDescription: String? {
         switch self {
-        case .invalidCallback: "The ChatGPT sign-in response could not be verified. Start sign-in again."
-        case .invalidIdentity: "The ChatGPT account could not be verified. Start sign-in again."
-        case .expired: "ChatGPT sign-in expired. Start sign-in again."
-        case .declined: "ChatGPT sign-in was cancelled. You can continue with another provider or sign in again."
-        case .signedOut: "Sign in to this ChatGPT account again to continue."
-        case .planPermissionRequired: "Enable ChatGPT plan usage for this account or choose an API-key provider."
-        case .browserUnavailable: "The browser could not open ChatGPT sign-in. Try again when the app is active."
+        case .invalidCallback: String(localized:"The ChatGPT sign-in response could not be verified. Start sign-in again.",bundle:.module)
+        case .invalidIdentity: String(localized:"The ChatGPT account could not be verified. Start sign-in again.",bundle:.module)
+        case .expired: String(localized:"ChatGPT sign-in expired. Start sign-in again.",bundle:.module)
+        case .declined: String(localized:"ChatGPT sign-in was cancelled. You can continue with another provider or sign in again.",bundle:.module)
+        case .signedOut: String(localized:"Sign in to this ChatGPT account again to continue.",bundle:.module)
+        case .planPermissionRequired: String(localized:"Enable ChatGPT plan usage for this account or choose an API-key provider.",bundle:.module)
+        case .browserUnavailable: String(localized:"The browser could not open ChatGPT sign-in. Try again when the app is active.",bundle:.module)
         }
     }
 }
@@ -70,7 +70,7 @@ public struct ChatGPTAccount: Codable, Equatable, Sendable {
     public let subject: String
     public let email: String?
     public let name: String?
-    public var label: String { email ?? name ?? "ChatGPT account" }
+    public var label: String { email ?? name ?? String(localized:"ChatGPT account",bundle:.module) }
     public var registrationLabel: String { String(clientID.suffix(8)) }
 }
 

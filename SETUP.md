@@ -2,9 +2,11 @@
 
 ## Toolchain and build
 
-Use Xcode 27 and Swift 6. The minimum OS targets remain 26. Run XcodeGen from this repository; `project.yml` is the source of truth. Generated projects, packages downloaded by SwiftPM, derived data, archives and signing files are excluded from Git.
+Use Xcode 27.1 or later and Swift 6. The iOS 27.1 SDK enables iPhone Duo full-display layout and vertical system bars. The minimum OS targets remain 26. Run XcodeGen from this repository; `project.yml` is the source of truth. Generated projects, packages downloaded by SwiftPM, derived data, archives and signing files are excluded from Git.
 
 ```sh
+# Point this at the installed Xcode 27.1 or later.
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 xcodegen generate
 xcodebuild -resolvePackageDependencies -project RepoManager.xcodeproj -scheme RepoManager
 xcodebuild -project RepoManager.xcodeproj -scheme RepoManager \

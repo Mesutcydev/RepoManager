@@ -1,5 +1,7 @@
 // Adapted from OnDeviceMax; see Docs/PROVENANCE.json and LICENSE.
 import SwiftUI
+import UIKit
+import RepoManagerCore
 
 /// Shared chat activity surfaces. The host supplies real events and timestamps.
 public struct RMToolEvent: Identifiable, Equatable {
@@ -8,12 +10,113 @@ public struct RMToolEvent: Identifiable, Equatable {
     public var title: String
     public var detail: String
     public var status: Status
+    public var arguments: String?
 
-    public init(id: String = UUID().uuidString, title: String, detail: String = "", status: Status) {
+    public init(id: String = UUID().uuidString, title: String, detail: String = "", status: Status, arguments: String? = nil) {
         self.id = id
         self.title = title
         self.detail = detail
         self.status = status
+        self.arguments = arguments
+    }
+}
+
+/// A single disclosure owns the tool list; large logs stay in the transcript's
+/// vertical scroll, and full output opens in a selectable native detail sheet.
+public struct RMToolActivityGroup: View {
+    public let events: [RMToolEvent]
+    public let isRunning: Bool
+    @Binding private var expanded: Bool
+    @State private var collapsedWhileRunning = false
+    @State private var selected: RMToolEvent?
+    public init(events: [RMToolEvent], isRunning: Bool, expanded: Binding<Bool>) {
+        self.events = events; self.isRunning = isRunning; self._expanded = expanded
+    }
+    private var isOpen: Bool { expanded || isRunning && !collapsedWhileRunning }
+    private var failed: Int { events.filter { $0.status == .failure }.count }
+    private var complete: Int { events.filter { [.success, .failure, .cancelled].contains($0.status) }.count }
+    public var body: some View {
+        VStack(alignment: .leading, spacing: RMLayout.unit) {
+            Button {
+                let next = !isOpen; expanded = next; collapsedWhileRunning = !next
+            } label: {
+                HStack(spacing: RMLayout.elementGap) {
+                    Image(systemName: isOpen ? "chevron.down" : "chevron.right").font(.caption2.weight(.semibold))
+                    if isRunning { Text("Using tools · \(complete) complete", bundle: .module) }
+                    else { Text("Used \(events.count) tools", bundle: .module) }
+                    if failed > 0 { Label { Text("\(failed) failed", bundle: .module) } icon: { Image(systemName: "exclamationmark.circle") }.foregroundStyle(RMPalette.red) }
+                    Spacer(minLength: 0)
+                }.font(RMType.meta).foregroundStyle(RMPalette.secondary).frame(minHeight: RMLayout.minimumHit).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain).accessibilityValue(isOpen ? String(localized: "Expanded", bundle: .module) : String(localized: "Collapsed", bundle: .module))
+            .accessibilityIdentifier("chat.tools.summary")
+            if isOpen {
+                VStack(spacing: 0) {
+                    ForEach(events) { event in
+                        RMToolActivityRow(event: event) { selected = event }
+                        if event.id != events.last?.id { Divider().padding(.leading, RMLayout.rowGap) }
+                    }
+                }.background { RMFrostedPanelBackground(cornerRadius: RMLayout.rowCorner) }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("chat.tools")
+            }
+        }.sheet(item: $selected) { RMToolActivityDetail(event: $0) }
+    }
+}
+
+private struct RMToolActivityRow: View {
+    let event: RMToolEvent
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            HStack(alignment: .firstTextBaseline, spacing: RMLayout.elementGap) {
+                Image(systemName: symbol).foregroundStyle(event.status == .failure ? RMPalette.red : RMPalette.secondary)
+                    .frame(width: 18).accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: RMLayout.unit) {
+                    Text(event.title).font(.system(.footnote, design: .monospaced)).lineLimit(2)
+                    if event.status == .failure { Text("Failed — open details", bundle: .module).font(RMType.meta).foregroundStyle(RMPalette.red) }
+                }.frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(RMPalette.secondary).accessibilityHidden(true)
+            }.foregroundStyle(RMPalette.text).padding(RMLayout.rowGap).frame(minHeight: RMLayout.minimumHit).contentShape(Rectangle())
+        }.buttonStyle(RMPressButtonStyle()).accessibilityLabel(event.title).accessibilityValue(RMLocalization.text(event.status.rawValue))
+            .accessibilityHint(Text("Shows tool details", bundle: .module)).accessibilityIdentifier("chat.tool.\(event.id)")
+    }
+    private var symbol: String {
+        switch event.status {
+        case .running: "circle.dotted"
+        case .success: "checkmark.circle"
+        case .failure: "exclamationmark.circle"
+        case .cancelled: "minus.circle"
+        case .approval: "checkmark.shield"
+        }
+    }
+}
+
+private struct RMToolActivityDetail: View {
+    let event: RMToolEvent
+    @Environment(\.dismiss) private var dismiss
+    @State private var copied = false
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: RMLayout.cardInset) {
+                    LabeledContent { Text(RMLocalization.text(event.status.rawValue)) } label: { Text("Status", bundle: .module) }.font(RMType.body)
+                    if let arguments = event.arguments, !arguments.isEmpty {
+                        Text("Arguments", bundle: .module).font(RMType.label)
+                        Text(arguments).font(.system(.footnote, design: .monospaced)).textSelection(.enabled)
+                    }
+                    Text("Output", bundle: .module).font(RMType.label)
+                    Text(event.detail.isEmpty ? event.title : event.detail).font(.system(.footnote, design: .monospaced)).textSelection(.enabled)
+                        .accessibilityIdentifier("chat.tool.details")
+                    Button {
+                        UIPasteboard.general.setItems([[UIPasteboard.typeAutomatic: [event.arguments, event.detail].compactMap { $0 }.joined(separator: "\n\n")]], options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(120)])
+                        copied = true
+                    } label: { Label { Text(copied ? "Copied" : "Copy details", bundle: .module) } icon: { Image(systemName: copied ? "checkmark" : "doc.on.doc") } }
+                        .rmSecondaryButton().accessibilityIdentifier("chat.tool.copy")
+                }.padding(RMLayout.pageInset).frame(maxWidth: .infinity, alignment: .leading)
+            }.navigationTitle(event.title).navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button { dismiss() } label: { Label { Text("Done", bundle: .module) } icon: { Image(systemName: "checkmark") } }.accessibilityIdentifier("chat.tool.done") } }
+        }.presentationDetents([.medium, .large]).presentationDragIndicator(.visible).presentationBackground(.thinMaterial)
     }
 }
 
@@ -94,6 +197,7 @@ public struct RMToolPillStrip: View {
                     Button { selectedEvent = event } label: {
                         HStack(spacing: RMLayout.unit) {
                             statusIcon(event.status)
+                                .frame(width:16,height:16)
                             Text(event.title)
                                 .font(.system(.caption2, design: .monospaced))
                                 .foregroundStyle(RMPalette.secondary)
@@ -112,7 +216,7 @@ public struct RMToolPillStrip: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(event.title)
-                    .accessibilityValue(event.status.rawValue)
+                    .accessibilityValue(RMLocalization.text(event.status.rawValue))
                     .accessibilityHint(Text("Shows tool details", bundle: .module))
                     .accessibilityIdentifier("chat.tool.\(event.id)")
                 }
@@ -201,7 +305,7 @@ public struct RMTimedActivityLabel: View {
             RMActivityDots()
             TimelineView(.animation(minimumInterval: 1, paused: !workspaceVisible || scenePhase != .active)) { context in
                 let seconds = max(0, Int(context.date.timeIntervalSince(startedAt)))
-                Text("\(title) · \(seconds)s")
+                Text("\(title) · \(seconds)s", bundle:.module)
                     .font(RMType.label)
                     .monospacedDigit()
                     .foregroundStyle(RMPalette.secondary)

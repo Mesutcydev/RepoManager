@@ -73,7 +73,7 @@ struct HTTPResponseFramer:Sendable {
                     guard let end = buffer.range(of:Data([13,10])) else { guard buffer.count <= 4096 else { throw RMError.tooLarge }; break }
                     guard end.lowerBound <= 4096,let line = String(data:buffer.prefix(end.lowerBound),encoding:.ascii),
                           let number = line.split(separator:";",maxSplits:1).first,!number.isEmpty,number.allSatisfy(\.isHexDigit),
-                          let size = Int(number,radix:16),size >= 0,total+size <= limit else { throw RMError.invalidInput }
+                          let size = Int(number,radix:16),size >= 0,size <= limit-total else { throw RMError.invalidInput }
                     discard(end.upperBound)
                     if size == 0 { trailers = true; continue }; chunkRemaining = size
                 }
@@ -89,16 +89,43 @@ struct HTTPResponseFramer:Sendable {
     }
 }
 
+enum ValidatedEndpoints {
+    /// Connection selection happens before any HTTP header or body is sent.
+    static func connect<Connected:Sendable>(_ addresses:[String],using attempt:@Sendable (String) async throws -> Connected) async throws -> Connected {
+        guard let first = addresses.first else { throw RMError.connection }
+        guard addresses.allSatisfy(URLPolicy.isPublicAddress) else { throw RMError.insecureURL }
+        var seen = Set<String>(), unique: [String] = []
+        for address in addresses where seen.insert(address).inserted { unique.append(address) }
+        var ordered = [first]
+        if let otherFamily = unique.first(where:{ $0.contains(":") != first.contains(":") }) { ordered.append(otherFamily) }
+        ordered += unique.filter { !ordered.contains($0) }
+        for address in ordered.prefix(6) {
+            try Task.checkCancellation()
+            do { return try await attempt(address) }
+            catch RMError.connection { continue }
+        }
+        throw RMError.connection
+    }
+}
+
 enum PinnedHTTPS {
-    static func exchange(_ request:URLRequest,limit:Int,checkStatus:Bool,onResponse:@escaping @Sendable (HTTPResult) throws -> Void = { _ in },emit:@escaping @Sendable (Data) throws -> Void) async throws -> HTTPResult {
+    static func exchange(_ request:URLRequest,limit:Int,checkStatus:Bool,onResponse:@escaping @Sendable (HTTPResult) async throws -> Void = { _ in },emit:@escaping @Sendable (Data) async throws -> Void) async throws -> HTTPResult {
         guard let url = request.url,let host = url.host,limit > 0,limit <= 50*1024*1024 else { throw RMError.invalidInput }
         let addresses = try await URLPolicy.resolvePublic(url)
-        guard let ip = addresses.first else { throw RMError.connection }
-        let channel = try TLSChannel(ip:ip,hostname:host)
+        let channel = try await ValidatedEndpoints.connect(addresses) { ip in
+            let candidate = try TLSChannel(ip:ip,hostname:host)
+            let connectTimeout = Task { do { try await Task.sleep(for:.seconds(5)); candidate.cancel() } catch {} }
+            var connected = false
+            defer { connectTimeout.cancel(); if !connected { candidate.cancel() } }
+            return try await withTaskCancellationHandler {
+                do { try await candidate.connect(); try Task.checkCancellation(); connected = true; return candidate }
+                catch RMError.cancelled where !Task.isCancelled { throw RMError.connection }
+            } onCancel: { candidate.cancel() }
+        }
         let timeout = Task { do { try await Task.sleep(for:.seconds(300)); channel.cancel() } catch {} }
         defer { timeout.cancel(); channel.cancel() }
         return try await withTaskCancellationHandler {
-            try Task.checkCancellation(); try await channel.connect()
+            try Task.checkCancellation()
             var components = URLComponents(url:url,resolvingAgainstBaseURL:false)
             components?.scheme = nil; components?.host = nil; components?.port = nil
             let path = (components?.percentEncodedPath.isEmpty == false ? components?.percentEncodedPath : "/") ?? "/"
@@ -134,10 +161,10 @@ enum PinnedHTTPS {
                 try Task.checkCancellation(); let (bytes,eof) = try await channel.receive()
                 let chunks = try framer.feed(bytes,eof:eof)
                 if let head = framer.head,!checked {
-                    try onResponse(HTTPResult(status:head.status,data:Data(),headers:head.headers))
+                    try await onResponse(HTTPResult(status:head.status,data:Data(),headers:head.headers))
                     if checkStatus { try SecureHTTPTransport.checkStatus(head.status) }; checked = true
                 }
-                for chunk in chunks { try Task.checkCancellation(); try emit(chunk) }
+                for chunk in chunks { try Task.checkCancellation(); try await emit(chunk) }
             }
             guard let head = framer.head else { throw RMError.connection }
             return HTTPResult(status:head.status,data:Data(),headers:head.headers)

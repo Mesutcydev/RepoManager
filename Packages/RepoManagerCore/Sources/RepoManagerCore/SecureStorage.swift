@@ -15,11 +15,14 @@ public extension SecretStore {
 }
 public struct KeychainStore: SecretStore {
     public static let service = "com.mesutcydev.repomanager.v1"
-    private let namespace: String
-    public init(service: String = Self.service) { namespace = service }
+    private let namespace: String; private let accessGroup: String?
+    /// `accessGroup` nil keeps items in the app's own default group; an app-group id shares them with the extension.
+    public init(service: String = Self.service, accessGroup: String? = nil) { namespace = service; self.accessGroup = accessGroup }
     private func query(_ account: String, _ sync: Bool) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: namespace,
+        var q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: namespace,
          kSecAttrAccount as String: account, kSecAttrSynchronizable as String: sync,kSecUseDataProtectionKeychain as String:true]
+        if let accessGroup { q[kSecAttrAccessGroup as String] = accessGroup }
+        return q
     }
     public func read(_ account: String, synchronizable: Bool = false) throws -> Data? {
         var q = query(account, synchronizable); q[kSecReturnData as String] = true; q[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -240,6 +243,12 @@ public enum BackupImport {
             imported.data.conversations[i].title += " (import)"
             imported.data.conversations[i].providerID = c.providerID.flatMap { providerIDs[$0] }
             imported.data.conversations[i].personaID = c.personaID.flatMap { personaIDs[$0] }
+            // A bundle is not origin-authenticated. Replay its history only as visible user/assistant turns: system rows,
+            // raw protocol rounds and provider state would reach the request verbatim. ConversationContext rebuilds
+            // tool history from calls/results with the untrusted-data framing.
+            imported.data.conversations[i].messages = c.messages.filter { $0.role == .user || $0.role == .assistant }.map {
+                var m = $0; m.protocolRounds = nil; m.providerContinuation = nil; return m
+            }
         }
         imported.drafts = imported.drafts.compactMap { d in guard let id = conversationIDs[d.conversationID] else { return nil }; var copy = d; copy.conversationID = id; return copy }
         imported.checkpoints = imported.checkpoints.compactMap { c in guard let id = conversationIDs[c.draft.conversationID] else { return nil }; var copy = c; copy.id = UUID(); copy.draft.conversationID = id; return copy }

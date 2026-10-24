@@ -3,7 +3,7 @@ import Foundation
 /// A person's report about a model response, composed for their own mail app.
 /// Repo Manager sends nothing itself; the person reviews, edits, or discards the message there.
 public enum ContentReport {
-    public static let reasons = ["Inaccurate or misleading","Harmful or offensive","Exposes private or sensitive data","Something else"]
+    public static let reasons = [String(localized:"Inaccurate or misleading",bundle:.module),String(localized:"Harmful or offensive",bundle:.module),String(localized:"Exposes private or sensitive data",bundle:.module),String(localized:"Something else",bundle:.module)]
     public static let excerptLimit = 1500
     public static func mailURL(to address:String,reason:String,note:String,source:String,messageID:UUID,created:Date,response:String?) -> URL? {
         guard address.contains("@"), !address.contains(where:{ $0.isWhitespace || "?&/".contains($0) }) else { return nil }

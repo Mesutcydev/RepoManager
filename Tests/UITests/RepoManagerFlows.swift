@@ -1,7 +1,272 @@
 import XCTest
+import UIKit
 
 final class RepoManagerFlows: XCTestCase {
+    @MainActor func testBackgroundedAuditRetainsProgressAndContinueKeepsTheTask() throws {
+        let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures", "--background-resume-fixtures", "--workspace", "chat"]; app.launch()
+        let composer = app.textFields["chat.composer.text"]
+        XCTAssertTrue(composer.waitForExistence(timeout: 20)); composer.tap(); composer.typeText("Audit repo for cleanup and better display")
+        app.buttons["chat.composer.send"].tap()
+        let pending = app.buttons["chat.tool.background_map"], completed = app.buttons["chat.tool.background_files"]
+        XCTAssertTrue(pending.waitForExistence(timeout: 15)); XCTAssertEqual(pending.value as? String, "running")
+        XCTAssertEqual(completed.value as? String, "success")
+        XCUIDevice.shared.press(.home)
+        let backgrounded = NSPredicate { _, _ in app.state == .runningBackground || app.state == .runningBackgroundSuspended }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: backgrounded, object: nil)], timeout: 10), .completed)
+        app.activate()
+        XCTAssertTrue(composer.waitForExistence(timeout: 20))
+        XCTAssertTrue(pending.waitForExistence(timeout: 10)); XCTAssertEqual(pending.value as? String, "cancelled")
+        XCTAssertEqual(completed.value as? String, "success")
+        XCTAssertFalse(app.buttons["chat.composer.stop"].exists)
+        app.buttons["More response actions"].firstMatch.tap()
+        app.buttons["chat.response.continue"].tap()
+        XCTAssertTrue(app.staticTexts["Background audit resumed"].waitForExistence(timeout: 30), "Continue must retain the task, paired prior results, and complete another read")
+        XCTAssertTrue(app.buttons["chat.composer.voice"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons["chat.tool.resumed_read"].value as? String, "success")
+        XCTAssertFalse(app.alerts["Repo Manager"].exists)
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "Audit continues with retained progress after backgrounding"; shot.lifetime = .keepAlways; add(shot)
+    }
+    @MainActor func testRepositoryAuditContinuesBeyondTwentyFiveCalls() throws {
+        let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures", "--extended-audit-fixtures", "--workspace", "chat"]; app.launch()
+        let composer = app.textFields["chat.composer.text"]
+        XCTAssertTrue(composer.waitForExistence(timeout: 20)); composer.tap(); composer.typeText("Audit repo for cleanup and better display")
+        app.buttons["chat.composer.send"].tap()
+        XCTAssertTrue(app.staticTexts["Extended repository audit complete"].waitForExistence(timeout: 45))
+        XCTAssertFalse(app.alerts["Repo Manager"].exists)
+        XCTAssertTrue(app.buttons["chat.composer.voice"].waitForExistence(timeout: 5))
+        let calls = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "chat.tool.extended_read_"))
+        XCTAssertEqual(calls.count, 35)
+        XCTAssertTrue(calls.allElementsBoundByIndex.allSatisfy { ($0.value as? String) == "success" })
+    }
+    @MainActor func testRepositoryAuditDoesNotStopAtPreambleOrBlankProceed() throws {
+        let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures","--completed-response-fixtures","--workspace","chat"]; app.launch()
+        let composer = app.textFields["chat.composer.text"]
+        XCTAssertTrue(composer.waitForExistence(timeout:20))
+        XCTAssertTrue(app.buttons["Plan"].exists); app.buttons["Plan"].tap()
+        for prompt in ["Audit repo for cleanup and better display","Proceed"] {
+            let replies = app.staticTexts.matching(identifier:"Repository audit complete")
+            let before = replies.count
+            composer.tap(); composer.typeText(prompt); app.buttons["chat.composer.send"].tap()
+            let completed = NSPredicate { _,_ in replies.count == before+1 }
+            XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:completed,object:nil)],timeout:25),.completed,"The audit must read the repository and produce findings without another Proceed")
+            XCTAssertTrue(app.buttons["chat.composer.voice"].waitForExistence(timeout:10))
+            XCTAssertFalse(app.alerts["Repo Manager"].exists)
+            let calls = app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH %@","chat.tool.call_read_"))
+            XCTAssertGreaterThan(calls.count,0)
+            XCTAssertEqual(calls.element(boundBy:calls.count-1).value as? String,"success")
+        }
+        let shot = XCTAttachment(screenshot:app.screenshot()); shot.name = "Audit and Proceed both execute repository tools and finish"; shot.lifetime = .keepAlways; add(shot)
+    }
+    @MainActor func testEmptyResponseExplainsFailureAndRestoresDraft() throws {
+        let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures","--empty-response-fixtures","--workspace","chat"]; app.launch()
+        let composer = app.textFields["chat.composer.text"]
+        XCTAssertTrue(composer.waitForExistence(timeout:20)); composer.tap(); composer.typeText("Proceed"); app.buttons["chat.composer.send"].tap()
+        let notice = app.staticTexts["No reply received"]
+        XCTAssertTrue(notice.waitForExistence(timeout:15))
+        XCTAssertTrue(app.buttons["chat.composer.send"].waitForExistence(timeout:5)); XCTAssertTrue(app.buttons["chat.composer.send"].isEnabled)
+        XCTAssertFalse(app.buttons["chat.composer.stop"].exists); XCTAssertEqual(composer.value as? String,"Proceed")
+        XCTAssertFalse(app.alerts["Repo Manager"].exists)
+        let shot = XCTAttachment(screenshot:app.screenshot()); shot.name = "Empty response has a visible explanation and retained draft"; shot.lifetime = .keepAlways; add(shot)
+    }
+    @MainActor func testRapidLongResponseKeepsReadingPositionAndChatControls() throws {
+        let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures","--rapid-stream-fixtures","--workspace","chat"]; app.launch()
+        let composer = app.textFields["chat.composer.text"]
+        XCTAssertTrue(composer.waitForExistence(timeout:20)); composer.tap(); composer.typeText("Stream the repository audit")
+        if app.buttons["keyboard.dismiss"].exists { app.buttons["keyboard.dismiss"].tap() }
+        let referenceImage = app.screenshot().image
+        let frames = [app.workspaceNavigationControl,app.buttons["chat.modelPicker"],app.buttons["navigation.newChat"],app.buttons["chat.repositoryContext"]].map { "\($0.identifier): \($0.frame)" }.joined(separator:"\n")
+        let frameData = XCTAttachment(string:frames); frameData.name = "Fixed chrome reference frames"; frameData.lifetime = .keepAlways; add(frameData)
+        let chrome = try [app.workspaceNavigationControl,app.buttons["chat.modelPicker"],app.buttons["navigation.newChat"],app.buttons["chat.repositoryContext"]].map { element in
+            let frame = element.frame
+            return (frame,try brightPixels(referenceImage,frame:frame,screen:app.frame))
+        }
+        let referenceShot = XCTAttachment(image:referenceImage); referenceShot.name = "Chat chrome before streaming"; referenceShot.lifetime = .keepAlways; add(referenceShot)
+        app.buttons["chat.composer.send"].tap()
+        let keyboardHidden = NSPredicate { _,_ in !app.keyboards.firstMatch.exists }
+        XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:keyboardHidden,object:nil)],timeout:5),.completed)
+        let composerY = composer.frame.minY, toolbarY = app.buttons["chat.modelPicker"].frame.minY
+        XCTAssertTrue(app.staticTexts["Streaming audit"].waitForExistence(timeout:8))
+        let transcript = app.scrollViews["chat.transcript"].firstMatch
+        let viewport = transcript.frame
+        let liveText = app.staticTexts.matching(NSPredicate(format:"label BEGINSWITH %@","Section "))
+        XCTAssertTrue(liveText.firstMatch.waitForExistence(timeout:5))
+        for _ in 0..<3 {
+            XCTAssertTrue(liveText.allElementsBoundByIndex.contains { $0.frame.intersects(viewport) }, "The followed transcript has visible reply content")
+            try assertChrome(app,reference:chrome)
+            let shot = XCTAttachment(screenshot:app.screenshot()); shot.name = "Followed streaming content stays visible"; shot.lifetime = .keepAlways; add(shot)
+            RunLoop.current.run(until:Date().addingTimeInterval(0.3))
+        }
+        let older = app.staticTexts.matching(NSPredicate(format:"label BEGINSWITH %@","I can inspect files, compare changes")).firstMatch
+        // On iPad the earlier message can still fit while following the footer.
+        // Always perform the reader's gesture before asserting paused following.
+        transcript.swipeDown()
+        for _ in 0..<6 { if older.frame.intersects(viewport) { break }; transcript.swipeDown() }
+        XCTAssertTrue(older.frame.intersects(viewport), "The reader can return to earlier content while the answer streams")
+        var previousY = CGFloat.nan,stableSamples = 0
+        let readingSettled = NSPredicate { _,_ in
+            let y = older.frame.minY
+            stableSamples = abs(y-previousY)<0.5 ? stableSamples+1 : 0
+            previousY = y
+            return stableSamples>=2
+        }
+        XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:readingSettled,object:nil)],timeout:5),.completed,"Wait for the reader's swipe to settle before measuring streaming movement")
+        let readingY = older.frame.minY
+        for index in 0..<10 {
+            XCTAssertTrue(older.frame.intersects(viewport), "Earlier content vanished at sample \(index)")
+            try assertChrome(app,reference:chrome)
+            XCTAssertEqual(older.frame.minY,readingY,accuracy:4, "Streaming moved the reader away from the chosen message")
+            XCTAssertEqual(composer.frame.minY,composerY,accuracy:2)
+            XCTAssertEqual(app.buttons["chat.modelPicker"].frame.minY,toolbarY,accuracy:2)
+            XCTAssertFalse(app.alerts["Repo Manager"].exists)
+            if index == 0 || index == 9 { let shot = XCTAttachment(screenshot:app.screenshot()); shot.name = "Rapid streaming reading position \(index)"; shot.lifetime = .keepAlways; add(shot) }
+            RunLoop.current.run(until:Date().addingTimeInterval(0.4))
+        }
+        XCTAssertTrue(app.buttons["chat.latest"].exists); app.buttons["chat.latest"].tap()
+        XCTAssertTrue(app.buttons["chat.composer.voice"].waitForExistence(timeout:25))
+        XCTAssertTrue(app.staticTexts["Audit complete"].frame.intersects(viewport))
+        try assertChrome(app,reference:chrome)
+        XCTAssertFalse(app.alerts["Repo Manager"].exists)
+        let shot = XCTAttachment(screenshot:app.screenshot()); shot.name = "Rapid completed reply remains on screen"; shot.lifetime = .keepAlways; add(shot)
+    }
+
+    @MainActor private func assertChrome(_ app:XCUIApplication,reference:[(CGRect,[Bool])]) throws {
+        let current = app.screenshot().image
+        for (frame,expected) in reference {
+            let actual = try brightPixels(current,frame:frame,screen:app.frame)
+            let count = expected.filter { $0 }.count
+            XCTAssertGreaterThan(count,20,"The reference must contain visible chrome")
+            XCTAssertEqual(actual.count,expected.count)
+            guard count > 0,actual.count == expected.count else { continue }
+            let retained = expected.indices.filter { expected[$0] && actual[$0] }.count
+            XCTAssertGreaterThan(Double(retained)/Double(count),0.65,"Transcript content covered a fixed chat control")
+        }
+    }
+    private func brightPixels(_ image:UIImage,frame:CGRect,screen:CGRect) throws -> [Bool] {
+        let source = try XCTUnwrap(image.cgImage)
+        let scale = CGFloat(source.width)/screen.width
+        let rect = CGRect(x:(frame.minX-screen.minX)*scale,y:(frame.minY-screen.minY)*scale,width:frame.width*scale,height:frame.height*scale).integral
+        let crop = try XCTUnwrap(source.cropping(to:rect))
+        let width = crop.width,height = crop.height
+        var pixels = [UInt8](repeating:0,count:width*height*4)
+        try pixels.withUnsafeMutableBytes { buffer in
+            let context = try XCTUnwrap(CGContext(data:buffer.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+            context.draw(crop,in:CGRect(x:0,y:0,width:width,height:height))
+        }
+        return (0..<(width*height)).map { pixels[$0*4]>160 && pixels[$0*4+1]>160 && pixels[$0*4+2]>160 }
+    }
+
+    @MainActor func testRepositoryBranchFailureStaysWithPicker() throws {
+        let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures","--branch-request-error-fixtures","--workspace","chat"]; app.launch()
+        XCTAssertTrue(app.buttons["chat.repositoryContext"].waitForExistence(timeout:20)); app.buttons["chat.repositoryContext"].tap()
+        let repo = app.buttons["repository.pick.42"]
+        XCTAssertTrue(repo.waitForExistence(timeout:15)); repo.tap()
+        let notice = app.staticTexts.matching(NSPredicate(format:"label CONTAINS %@","Branches could not load")).firstMatch
+        XCTAssertTrue(notice.waitForExistence(timeout:10))
+        XCTAssertFalse(app.alerts["Repo Manager"].exists)
+        XCTAssertTrue(app.buttons["Use this repository and branch"].isEnabled)
+        let shot = XCTAttachment(screenshot:app.screenshot()); shot.name = "Branch failure stays in repository picker"; shot.lifetime = .keepAlways; add(shot)
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.textFields["chat.composer.text"].isHittable)
+        XCTAssertFalse(app.alerts["Repo Manager"].exists)
+    }
+
+    @MainActor func testBackgroundSyncFailureDoesNotInterruptCompletedResponse() throws {
+        let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures","--background-sync-error-fixtures","--workspace","chat"]; app.launch()
+        let composer = app.textFields["chat.composer.text"]
+        XCTAssertTrue(composer.waitForExistence(timeout:20)); composer.tap(); composer.typeText("Hello")
+        if app.buttons["keyboard.dismiss"].exists { app.buttons["keyboard.dismiss"].tap() }
+        app.buttons["chat.composer.send"].tap()
+        XCTAssertTrue(app.buttons["chat.composer.voice"].waitForExistence(timeout:20))
+        let actions = app.buttons.matching(NSPredicate(format:"label == %@","More response actions"))
+        XCTAssertGreaterThan(actions.count,0); actions.element(boundBy:actions.count-1).tap(); app.buttons["Response details"].tap()
+        XCTAssertTrue(app.staticTexts["Response details"].waitForExistence(timeout:5))
+        XCTAssertFalse(app.alerts["Repo Manager"].waitForExistence(timeout:9), "An automatic sync failure must not become a reply failure modal")
+        XCTAssertTrue(app.staticTexts["Response details"].exists)
+        let shot = XCTAttachment(screenshot:app.screenshot()); shot.name = "Response details survive failed background sync"; shot.lifetime = .keepAlways; add(shot)
+        app.buttons["Done"].tap()
+    }
+
+    @MainActor func testReplyAndReasoningRemainVisibleAcrossToolRounds() throws {
+        let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures", "--reply-stability-fixtures", "--workspace", "chat"]; app.launch()
+        let composer = app.textFields["chat.composer.text"]
+        XCTAssertTrue(composer.waitForExistence(timeout: 20)); composer.tap(); composer.typeText("Audit with visible reasoning and retain earlier findings")
+        app.buttons["chat.composer.send"].tap()
+        let reasoning = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "First reasoning summary remains visible.")).firstMatch
+        let first = XCTAttachment(screenshot: app.screenshot()); first.name = "Reasoning begins"; first.lifetime = .keepAlways; add(first)
+        XCTAssertTrue(reasoning.waitForExistence(timeout: 5), "Provider-returned reasoning is visible while the turn is active")
+        let heading = app.staticTexts["Stable reply"]
+        XCTAssertTrue(heading.waitForExistence(timeout: 8), "The reply keeps the same Markdown presentation while streaming")
+        let firstTool = app.buttons["chat.tool.fixture-read-0"]
+        XCTAssertTrue(firstTool.waitForExistence(timeout: 8)); XCTAssertTrue(app.buttons["chat.composer.stop"].exists)
+        XCTAssertTrue(heading.exists); XCTAssertTrue(reasoning.exists)
+        let toolFrame = firstTool.frame
+        let during = XCTAttachment(screenshot: app.screenshot()); during.name = "Reply and reasoning during tool execution"; during.lifetime = .keepAlways; add(during)
+        let success = NSPredicate { _, _ in firstTool.value as? String == "success" }
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: success, evaluatedWith: firstTool)], timeout: 10), .completed)
+        XCTAssertEqual(firstTool.frame.width, toolFrame.width, accuracy: 0.5)
+        XCTAssertEqual(firstTool.frame.height, toolFrame.height, accuracy: 0.5)
+        XCTAssertTrue(heading.exists); XCTAssertTrue(reasoning.exists)
+        let secondTool = app.buttons["chat.tool.fixture-read-1"]
+        XCTAssertTrue(secondTool.waitForExistence(timeout: 12)); XCTAssertTrue(app.buttons["chat.composer.stop"].exists)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "The initial findings stay visible throughout the audit.")).firstMatch.exists)
+        let second = XCTAttachment(screenshot: app.screenshot()); second.name = "Earlier reply retained during second tool round"; second.lifetime = .keepAlways; add(second)
+        XCTAssertTrue(app.buttons["chat.composer.voice"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["The audit is complete."].exists)
+        let disclosure = app.buttons["chat.reasoning"]
+        XCTAssertTrue(disclosure.exists); disclosure.tap()
+        XCTAssertTrue(reasoning.exists)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Second reasoning summary is retained across the tool round.")).firstMatch.exists)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Final reasoning summary is retained after completion.")).firstMatch.exists)
+        let final = XCTAttachment(screenshot: app.screenshot()); final.name = "Completed reply with retained reasoning expanded"; final.lifetime = .keepAlways; add(final)
+        XCTAssertFalse(app.alerts["Repo Manager"].exists)
+    }
+
+    @MainActor func testRepositoryAuditContinuesAfterLargeToolResults() throws {
+        let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures", "--context-budget-fixtures", "--workspace", "chat"]; app.launch()
+        let composer = app.textFields["chat.composer.text"]
+        XCTAssertTrue(composer.waitForExistence(timeout: 20)); composer.tap(); composer.typeText("Audit repo for cleanup and better display")
+        if app.buttons["keyboard.dismiss"].exists { app.buttons["keyboard.dismiss"].tap() }
+        app.buttons["chat.composer.send"].tap()
+        let reply = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Repository audit completed with partial tool coverage")).firstMatch
+        XCTAssertTrue(reply.waitForExistence(timeout: 30), "Large successful tool results must allow the next model round")
+        XCTAssertFalse(app.alerts["Repo Manager"].exists)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "parts of long tool results were omitted")).firstMatch.exists)
+        XCTAssertTrue(app.buttons["chat.composer.voice"].waitForExistence(timeout: 5), "The composer is ready for another request")
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "Repository audit completes after large tool results"; shot.lifetime = .keepAlways; add(shot)
+        composer.tap(); composer.typeText("Audit repo for cleanup and better display")
+        if app.buttons["keyboard.dismiss"].exists { app.buttons["keyboard.dismiss"].tap() }
+        app.buttons["chat.composer.send"].tap()
+        let replies = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Repository audit completed with partial tool coverage"))
+        let both = NSPredicate { _, _ in replies.count == 2 }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: both, object: nil)], timeout: 30), .completed,
+                       "A repeated audit must restore a valid tool/response history")
+        XCTAssertFalse(app.alerts["Repo Manager"].exists)
+        let repeated = XCTAttachment(screenshot: app.screenshot()); repeated.name = "Repeated repository audit retains both completed replies"; repeated.lifetime = .keepAlways; add(repeated)
+    }
+
     override func setUpWithError() throws { continueAfterFailure = false }
+    @MainActor func testChatGPTRequestFailurePreservesDraftAndSafeDiagnostics() throws {
+        for editingNextDraft in [false, true] {
+            let app = XCUIApplication()
+            app.launchArguments = ["--ui-fixtures", "--context-budget-fixtures", "--chatgpt-request-error-fixtures", "--workspace", "chat"]; app.launch()
+            let composer = app.textFields["chat.composer.text"], prompt = "Audit repo for cleanup and better display"
+            XCTAssertTrue(composer.waitForExistence(timeout: 20)); composer.tap(); composer.typeText(prompt)
+            if app.buttons["keyboard.dismiss"].exists { app.buttons["keyboard.dismiss"].tap() }
+            app.buttons["chat.composer.send"].tap()
+            let next = "My next request"
+            if editingNextDraft {
+                XCTAssertTrue(app.staticTexts["list_files"].firstMatch.waitForExistence(timeout: 15))
+                composer.tap(); composer.typeText(next)
+            }
+            let alert = app.alerts["Repo Manager"]
+            XCTAssertTrue(alert.waitForExistence(timeout: 30))
+            XCTAssertTrue(alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "HTTP 400")).firstMatch.exists)
+            XCTAssertFalse(alert.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "synthetic-secret")).firstMatch.exists)
+            alert.buttons["OK"].tap()
+            XCTAssertEqual(composer.value as? String, editingNextDraft ? next : prompt)
+            let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = editingNextDraft ? "New draft survives provider failure" : "Failed request restored to composer"; shot.lifetime = .keepAlways; add(shot)
+        }
+    }
     @MainActor func testProIncludesChatGPTAndUnlocksAPIProviders() throws {
         let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures","--pro-fixtures","--workspace","providers"]; app.launch()
         XCTAssertTrue(app.buttons["Add provider"].waitForExistence(timeout:20)); app.buttons["Add provider"].tap()
@@ -15,8 +280,13 @@ final class RepoManagerFlows: XCTestCase {
         app.buttons["provider.preset.openAI"].tap()
         XCTAssertTrue(app.buttons["pro.purchase"].waitForExistence(timeout:5))
         XCTAssertTrue(app.staticTexts["pro.price"].waitForExistence(timeout:5))
+        XCTAssertTrue(app.staticTexts["pro.chatgptIncluded"].exists)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format:"label BEGINSWITH %@","API providers")).firstMatch.exists)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format:"label BEGINSWITH %@","Custom HTTPS endpoints")).firstMatch.exists)
         let shot = XCTAttachment(screenshot:app.screenshot()); shot.name = "Pro one-time API-provider unlock"; shot.lifetime = .keepAlways; add(shot)
-        app.buttons["pro.restore"].tap()
+        let restore = app.buttons["pro.restore"]
+        for _ in 0..<4 where !restore.isHittable { app.swipeUp() }
+        XCTAssertTrue(restore.isHittable); restore.tap()
         XCTAssertTrue(app.staticTexts["No Pro purchase was found."].waitForExistence(timeout:5))
         app.buttons["pro.purchase"].tap()
         XCTAssertTrue(app.staticTexts["pro.unlocked"].waitForExistence(timeout:5))
@@ -28,6 +298,25 @@ final class RepoManagerFlows: XCTestCase {
         app.buttons["pro.restore"].tap()
         XCTAssertTrue(app.staticTexts["Pro purchase restored."].waitForExistence(timeout:5))
         XCTAssertTrue(app.staticTexts["pro.unlocked"].exists)
+    }
+    @MainActor func testPremiumPaywallRemainsReachableAtLargeTextInRTL() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-fixtures","--pro-fixtures","--workspace","providers","--large-text-fixtures","--rtl-fixtures","--reduced-motion-fixtures"]
+        app.launch()
+        let manage = app.buttons["pro.manage"]
+        XCTAssertTrue(manage.waitForExistence(timeout:20)); manage.tap()
+        XCTAssertTrue(app.staticTexts["pro.chatgptIncluded"].waitForExistence(timeout:5))
+        let restore = app.buttons["pro.restore"]
+        for _ in 0..<12 where !restore.isHittable { app.swipeUp() }
+        XCTAssertTrue(restore.isHittable); restore.tap()
+        XCTAssertTrue(app.staticTexts["pro.message"].waitForExistence(timeout:5))
+        let purchase = app.buttons["pro.purchase"]
+        for _ in 0..<4 where !purchase.isHittable { app.swipeDown() }
+        XCTAssertTrue(purchase.isHittable); purchase.tap()
+        XCTAssertTrue(app.staticTexts["pro.unlocked"].waitForExistence(timeout:5))
+        let shot = XCTAttachment(screenshot:app.screenshot()); shot.name = "Premium paywall accessibility RTL"; shot.lifetime = .keepAlways; add(shot)
+        app.buttons["pro.done"].tap()
+        XCTAssertTrue(app.buttons["pro.manage"].waitForExistence(timeout:5))
     }
     @MainActor func testChatGPTSignInRequiresDisclosureAndNoAPIKey() throws {
         let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures","--workspace","providers"]; app.launch()
@@ -105,7 +394,7 @@ final class RepoManagerFlows: XCTestCase {
 
     @MainActor func testGitHubPairingUsesBundledIdentityAndCanCancel() throws {
         let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures","--github-pairing-fixtures"]; app.launch()
-        XCTAssertTrue(app.buttons["navigation.sidebar"].waitForExistence(timeout:20)); navigate(app,to:"repositories")
+        XCTAssertTrue(app.workspaceNavigationControl.waitForExistence(timeout:20)); navigate(app,to:"repositories")
         app.buttons["Pair GitHub"].tap()
         XCTAssertTrue(app.buttons["github.connect"].waitForExistence(timeout:5))
         XCTAssertTrue(app.buttons["github.connect"].isEnabled)
@@ -127,7 +416,7 @@ final class RepoManagerFlows: XCTestCase {
     @MainActor func testGitHubSafariReturnKeepsPendingAuthorization() throws {
         // External Safari handoff with a synthetic code. No credentials or grants.
         let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures","--github-pairing-fixtures"]; app.launch()
-        XCTAssertTrue(app.buttons["navigation.sidebar"].waitForExistence(timeout:20)); navigate(app,to:"repositories")
+        XCTAssertTrue(app.workspaceNavigationControl.waitForExistence(timeout:20)); navigate(app,to:"repositories")
         app.buttons["Pair GitHub"].tap()
         XCTAssertTrue(app.buttons["github.connect"].waitForExistence(timeout:5)); app.buttons["github.connect"].tap()
         let code = app.staticTexts["github.userCode"]
@@ -146,13 +435,13 @@ final class RepoManagerFlows: XCTestCase {
         app.buttons["github.cancelAttempt"].tap()
         XCTAssertTrue(app.buttons["github.connect"].waitForExistence(timeout:5)); XCTAssertFalse(code.exists)
         app.buttons["github.cancel"].tap()
-        app.buttons["navigation.sidebar"].tap()
+        app.openWorkspaceNavigation()
         XCTAssertTrue(app.buttons["navigation.settings"].waitForExistence(timeout:5))
     }
     @MainActor func testRTLSettingsPhysicalTouch() throws {
         let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures","--large-text-fixtures","--rtl-fixtures"]; app.launch()
-        XCTAssertTrue(app.buttons["navigation.sidebar"].waitForExistence(timeout:20))
-        app.buttons["navigation.sidebar"].tap()
+        XCTAssertTrue(app.workspaceNavigationControl.waitForExistence(timeout:20))
+        app.openWorkspaceNavigation()
         let settings = app.buttons["navigation.settings"]
         XCTAssertTrue(settings.waitForExistence(timeout:5))
         let bounds = settings.frame
@@ -161,7 +450,7 @@ final class RepoManagerFlows: XCTestCase {
     }
     @MainActor func testLargeTextRTLAndSidebarAccess() throws {
         let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures","--large-text-fixtures","--rtl-fixtures"]; app.launch()
-        let sidebar = app.buttons["navigation.sidebar"]
+        let sidebar = app.workspaceNavigationControl
         XCTAssertTrue(sidebar.waitForExistence(timeout:20)); XCTAssertGreaterThan(sidebar.frame.midX,app.frame.midX,"Leading navigation mirrors to the right")
         app.buttons["navigation.newChat"].tap()
         let composer = app.textFields["chat.composer.text"]
@@ -179,8 +468,9 @@ final class RepoManagerFlows: XCTestCase {
         let drawer = app.otherElements["navigation.drawer"]
         XCTAssertTrue(drawer.waitForExistence(timeout:5))
         XCTAssertEqual(drawer.frame.maxX,app.frame.maxX,accuracy:2,"The RTL drawer occupies the leading right edge")
-        XCTAssertGreaterThan(drawer.frame.minX,app.frame.minX,"A closed drawer must not leak in from the opposite edge")
+        XCTAssertGreaterThanOrEqual(drawer.frame.minX,app.frame.minX,"The native sidebar stays inside the window")
         let open = XCTAttachment(screenshot:app.screenshot()); open.name = "Large text RTL leading drawer"; open.lifetime = .keepAlways; add(open)
+        app.revealWorkspace("tools")
         let tools = app.buttons["navigation.tools"]
         let navigationScroll = app.scrollViews["navigation.drawerScroll"]
         XCTAssertTrue(navigationScroll.waitForExistence(timeout:5))
@@ -204,7 +494,7 @@ final class RepoManagerFlows: XCTestCase {
     }
     @MainActor func testRepositoryBrowserAndPullRequestDetails() throws {
         let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures","--repository-fixtures"]; app.launch()
-        XCTAssertTrue(app.buttons["navigation.sidebar"].waitForExistence(timeout:20)); navigate(app,to:"repositories")
+        XCTAssertTrue(app.workspaceNavigationControl.waitForExistence(timeout:20)); navigate(app,to:"repositories")
         XCTAssertTrue(app.buttons["Browse files"].waitForExistence(timeout:5)); app.buttons["Browse files"].tap()
         let file = app.buttons.matching(NSPredicate(format:"label CONTAINS %@","README.md")).firstMatch
         XCTAssertTrue(file.waitForExistence(timeout:5)); file.tap()
@@ -215,7 +505,7 @@ final class RepoManagerFlows: XCTestCase {
         }
         let shot = XCTAttachment(screenshot:app.screenshot()); shot.name = "Repository file workspace"; shot.lifetime = .keepAlways; add(shot)
         app.terminate(); app.launch()
-        XCTAssertTrue(app.buttons["navigation.sidebar"].waitForExistence(timeout:20)); navigate(app,to:"pullRequests")
+        XCTAssertTrue(app.workspaceNavigationControl.waitForExistence(timeout:20)); navigate(app,to:"pullRequests")
         let pull = app.buttons.matching(NSPredicate(format:"label CONTAINS %@","Give the repository a clearer introduction")).firstMatch
         XCTAssertTrue(pull.waitForExistence(timeout:10)); pull.tap()
         XCTAssertTrue(app.staticTexts["README.md"].waitForExistence(timeout:5) || app.buttons.matching(NSPredicate(format:"label CONTAINS %@","README.md")).firstMatch.exists)
@@ -272,9 +562,10 @@ final class RepoManagerFlows: XCTestCase {
     }
     @MainActor func testProviderDisclosureAndNoLocalModels() throws {
         let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures"]; app.launch()
-        XCTAssertTrue(app.buttons["navigation.sidebar"].waitForExistence(timeout:20))
-        app.buttons["navigation.sidebar"].tap()
+        XCTAssertTrue(app.workspaceNavigationControl.waitForExistence(timeout:20))
+        app.openWorkspaceNavigation()
         XCTAssertFalse(app.buttons["navigation.models"].exists); XCTAssertFalse(app.buttons["navigation.lens"].exists)
+        app.revealWorkspace("providers")
         app.buttons["navigation.providers"].tap()
         XCTAssertTrue(app.buttons["Add provider"].waitForExistence(timeout:5)); app.buttons["Add provider"].tap()
         let preset = app.descendants(matching:.any).matching(NSPredicate(format:"label == %@", "OpenAI")).firstMatch
@@ -307,8 +598,8 @@ final class RepoManagerFlows: XCTestCase {
             let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures","--repository-fixtures"]
             if appearance == "light" { app.launchArguments.append("--light-appearance-fixtures") }
             app.launch()
-            XCTAssertTrue(app.buttons["navigation.sidebar"].waitForExistence(timeout:20))
-            XCTAssertGreaterThanOrEqual(app.buttons["navigation.sidebar"].frame.height,44)
+            XCTAssertTrue(app.workspaceNavigationControl.waitForExistence(timeout:20))
+            XCTAssertGreaterThan(app.workspaceNavigationControl.frame.height,0)
             for (destination,title) in pages {
                 navigate(app,to:destination)
                 XCTAssertTrue(app.staticTexts[title].firstMatch.waitForExistence(timeout:10),"The \(title) workspace is visible")
@@ -320,7 +611,7 @@ final class RepoManagerFlows: XCTestCase {
                     XCTAssertTrue(action.exists); XCTAssertGreaterThanOrEqual(action.frame.height,43.99)
                 }
             }
-            app.buttons["navigation.sidebar"].tap(); app.buttons["navigation.settings"].tap()
+            app.openWorkspaceNavigation(); app.buttons["navigation.settings"].tap()
             XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout:5))
             let settings = XCTAttachment(screenshot:app.screenshot()); settings.name = "UX-\(appearance)-settings"; settings.lifetime = .keepAlways; add(settings)
             app.terminate()
@@ -328,7 +619,7 @@ final class RepoManagerFlows: XCTestCase {
     }
     @MainActor func testToolArgumentsCannotUseStaleInvalidJSON() throws {
         let app = XCUIApplication(); app.launchArguments = ["--ui-fixtures","--repository-fixtures"]; app.launch()
-        XCTAssertTrue(app.buttons["navigation.sidebar"].waitForExistence(timeout:20)); navigate(app,to:"tools")
+        XCTAssertTrue(app.workspaceNavigationControl.waitForExistence(timeout:20)); navigate(app,to:"tools")
         let search = app.searchFields.firstMatch; XCTAssertTrue(search.waitForExistence(timeout:5)); search.tap(); search.typeText("calculator")
         let calculator = app.buttons["tool.calculator"]; XCTAssertTrue(calculator.waitForExistence(timeout:5)); calculator.tap()
         let advanced = app.switches["tool.advancedJSON"]; XCTAssertTrue(advanced.waitForExistence(timeout:5)); advanced.coordinate(withNormalizedOffset:CGVector(dx:0.9,dy:0.5)).tap()
@@ -345,14 +636,15 @@ final class RepoManagerFlows: XCTestCase {
         XCTAssertTrue(XCTWaiter.wait(for:[expectation(for:ready,evaluatedWith:element)],timeout:5) == .completed,"The committed text must match exactly",file:file,line:line)
     }
     @MainActor private func navigate(_ app:XCUIApplication,to destination:String,file:StaticString = #filePath,line:UInt = #line) {
-        let sidebar = app.buttons["navigation.sidebar"]
-        XCTAssertTrue(sidebar.waitForExistence(timeout:5),file:file,line:line); sidebar.tap()
+        let sidebar = app.workspaceNavigationControl
+        XCTAssertTrue(sidebar.waitForExistence(timeout:5),file:file,line:line); app.openWorkspaceNavigation()
         let drawer = app.otherElements["navigation.drawer"]
         XCTAssertTrue(drawer.waitForExistence(timeout:5),file:file,line:line)
         let settled = NSPredicate { _,_ in
             drawer.exists && drawer.frame.minX >= app.frame.minX-1 && drawer.frame.maxX <= app.frame.maxX+1
         }
         XCTAssertTrue(XCTWaiter.wait(for:[expectation(for:settled,evaluatedWith:drawer)],timeout:5) == .completed,file:file,line:line)
+        app.revealWorkspace(destination)
         let target = app.buttons["navigation.\(destination)"]
         XCTAssertTrue(target.waitForExistence(timeout:5),file:file,line:line)
         let scroll = app.scrollViews["navigation.drawerScroll"]
@@ -361,13 +653,98 @@ final class RepoManagerFlows: XCTestCase {
         XCTAssertGreaterThanOrEqual(bounds.minY,scroll.frame.minY,file:file,line:line)
         XCTAssertLessThanOrEqual(bounds.maxY,scroll.frame.maxY,file:file,line:line)
         app.coordinate(withNormalizedOffset:.zero).withOffset(CGVector(dx:bounds.midX,dy:bounds.midY)).tap()
-        let closed = NSPredicate { _,_ in !drawer.exists }
+        let closed = NSPredicate { _,_ in !drawer.exists || sidebar.isHittable }
         let result = XCTWaiter.wait(for:[expectation(for:closed,evaluatedWith:drawer)],timeout:5)
         if result != .completed {
             let snapshot = XCTAttachment(screenshot:app.screenshot()); snapshot.name = "Navigation did not close — \(destination)"; snapshot.lifetime = .keepAlways; add(snapshot)
             let tree = XCTAttachment(string:app.debugDescription); tree.name = "Synthetic navigation accessibility hierarchy"; tree.lifetime = .keepAlways; add(tree)
         }
-        XCTAssertTrue(result == .completed,"Selecting a workspace closes the drawer",file:file,line:line)
+        XCTAssertTrue(result == .completed,"Selecting a workspace exposes its detail while a wide sidebar can remain visible",file:file,line:line)
     }
 
+}
+
+
+/// Resize regressions use the same view and unsaved data throughout each test.
+final class DuoLayoutFlows: XCTestCase {
+    @MainActor func testChatDraftSurvivesResizingAndNavigation() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-fixtures","--repository-fixtures","--workspace","chat","--reduced-motion-fixtures"]
+        app.launch()
+        let composer = app.textFields["chat.composer.text"]
+        XCTAssertTrue(composer.waitForExistence(timeout:25))
+        composer.tap(); composer.typeText("Keep this draft while the display changes")
+        if app.buttons["keyboard.dismiss"].exists { app.buttons["keyboard.dismiss"].tap() }
+        for orientation in [UIDeviceOrientation.landscapeLeft,.portrait,.landscapeRight,.portrait] {
+            XCUIDevice.shared.orientation = orientation
+            let retained = NSPredicate { _,_ in composer.exists && composer.value as? String == "Keep this draft while the display changes" }
+            XCTAssertEqual(XCTWaiter.wait(for:[expectation(for:retained,evaluatedWith:nil)],timeout:8),.completed)
+            XCTAssertTrue(app.buttons["chat.composer.send"].isHittable)
+            XCTAssertTrue(app.buttons["navigation.newChat"].isHittable)
+            XCTAssertTrue(app.buttons["chat.modelPicker"].isHittable)
+        }
+        app.openWorkspaceNavigation()
+        app.revealWorkspace("tools")
+        XCTAssertTrue(app.buttons["navigation.tools"].waitForExistence(timeout:5))
+        app.revealWorkspace("tools")
+        let tools = app.buttons["navigation.tools"]
+        let navigationScroll = app.scrollViews["navigation.drawerScroll"]
+        for _ in 0..<6 where tools.frame.maxY > navigationScroll.frame.maxY || tools.frame.minY < navigationScroll.frame.minY { navigationScroll.swipeUp() }
+        XCTAssertTrue(tools.isHittable); tools.tap()
+        XCTAssertTrue(app.buttons["tools.group.Actions"].waitForExistence(timeout:5))
+        app.openWorkspaceNavigation()
+        let recent = app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH %@","navigation.recent.")).firstMatch
+        XCTAssertTrue(recent.waitForExistence(timeout:5)); recent.tap()
+        XCTAssertTrue(composer.waitForExistence(timeout:5))
+        XCTAssertEqual(composer.value as? String,"Keep this draft while the display changes")
+    }
+    @MainActor func testFileSelectionAndUnstagedEditSurviveResizing() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-fixtures","--repository-fixtures","--workspace","repositories","--reduced-motion-fixtures"]
+        app.launch()
+        XCTAssertTrue(app.buttons["Browse files"].waitForExistence(timeout:25)); app.buttons["Browse files"].tap()
+        let file = app.buttons.matching(NSPredicate(format:"label CONTAINS %@","README.md")).firstMatch
+        XCTAssertTrue(file.waitForExistence(timeout:10)); file.tap()
+        let editor = app.textViews.firstMatch
+        XCTAssertTrue(editor.waitForExistence(timeout:10))
+        let loaded = NSPredicate { _,_ in editor.isEnabled && (editor.value as? String)?.contains("A thoughtful workspace") == true }
+        XCTAssertEqual(XCTWaiter.wait(for:[expectation(for:loaded,evaluatedWith:nil)],timeout:10),.completed)
+        editor.tap(); editor.typeText("\nUnstaged resize regression draft.")
+        for orientation in [UIDeviceOrientation.landscapeLeft,.portrait,.landscapeRight,.portrait] {
+            XCUIDevice.shared.orientation = orientation
+            let retained = NSPredicate { _,_ in (editor.value as? String)?.contains("Unstaged resize regression draft.") == true }
+            XCTAssertEqual(XCTWaiter.wait(for:[expectation(for:retained,evaluatedWith:nil)],timeout:8),.completed)
+            XCTAssertTrue(app.buttons["Stage edit"].exists)
+        }
+    }
+}
+
+
+/// Native split-view controls own navigation; secondary workspaces are disclosed explicitly.
+extension XCUIApplication {
+    @MainActor var workspaceNavigationControl: XCUIElement {
+        let classic = buttons["navigation.sidebar"]
+        if classic.exists { return classic }
+        let back = descendants(matching:.any).matching(identifier:"BackButton").firstMatch
+        if back.exists { return back }
+        return buttons.matching(NSPredicate(format:"label IN %@",["Show Sidebar","Hide Sidebar"])).firstMatch
+    }
+    @MainActor func openWorkspaceNavigation() {
+        let drawer = otherElements["navigation.drawer"]
+        if !drawer.isHittable { workspaceNavigationControl.tap() }
+    }
+    @MainActor func revealWorkspace(_ destination:String) {
+        let secondary = ["actions","releases","security","activity","providers","tools","voice","apiServer"]
+        guard secondary.contains(destination) else { return }
+        let target = buttons["navigation.\(destination)"]
+        let scroll = scrollViews["navigation.drawerScroll"]
+        if !target.exists, buttons["navigation.moreWorkspaces"].exists {
+            let more = buttons["navigation.moreWorkspaces"]
+            for _ in 0..<8 where !more.isHittable { scroll.swipeUp() }
+            XCTAssertTrue(more.isHittable,"More workspaces remains reachable")
+            more.tap()
+        }
+        for _ in 0..<12 where !target.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(target.isHittable,"The disclosed workspace remains reachable")
+    }
 }

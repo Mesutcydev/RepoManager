@@ -27,6 +27,7 @@ actor GitHubFixture {
     var createdRepositories: [String:JSON] = [:]
     var statusOverride:Int?
     var secretPublicKey:String?
+    var treeEntries: [JSON]?
     var oauthResponses: [JSON] = []; var authCalls = 0
     var deviceResponse: JSON?
     func advance() { head = nextSHA }
@@ -35,6 +36,7 @@ actor GitHubFixture {
     func setStatus(_ value:Int?) { statusOverride = value }
     func setPermission(_ value:Bool) { permission = value }
     func setSecretPublicKey(_ value:String) { secretPublicKey = value }
+    func configureTree(_ entries: [JSON]) { treeEntries = entries }
     func configureOAuth(_ responses: [JSON]) { oauthResponses = responses }
     func configureDeviceResponse(_ value:JSON) { deviceResponse = value }
     func allRequests() -> [URLRequest] { requests }
@@ -58,7 +60,7 @@ actor GitHubFixture {
         if method == "GET",path.contains("/secrets/"),!path.hasSuffix("/public-key") { return response(.object([:]),404) }
         if path.contains("/git/ref/heads/") { return response(.object(["object":.object(["sha":.string(head)])])) }
         if method == "GET", path.contains("/git/commits/") { return response(.object(["sha":.string(baseSHA),"tree":.object(["sha":.string(treeSHA)]),"parents":.array([.object(["sha":.string(nextSHA)])])])) }
-        if method == "GET", path.contains("/git/trees/") { return response(.object(["truncated":false,"tree":.array([.object(["path":"script.sh","type":"blob","mode":.string(mode),"sha":.string(blobSHA),"size":.number(Double(content.utf8.count))])])])) }
+        if method == "GET", path.contains("/git/trees/") { return response(.object(["truncated":false,"tree":.array(treeEntries ?? [.object(["path":"script.sh","type":"blob","mode":.string(mode),"sha":.string(blobSHA),"size":.number(Double(content.utf8.count))])])])) }
         if method == "GET", path.contains("/git/blobs/") { return response(.object(["encoding":"base64","content":.string(Data(content.utf8).base64EncodedString())])) }
         if method != "GET" {
             if uncertain { throw RMError.connection }

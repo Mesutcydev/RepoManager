@@ -46,7 +46,7 @@ public enum TextDiff {
         return try apply(merged,to:base)
     }
     public static func review(_ change: FileChange) -> String {
-        let operation = change.original == nil ? "Added file" : change.updated == nil ? "Deleted file" : "Modified file"
+        let operation = change.original == nil ? String(localized:"Added file",bundle:.module) : change.updated == nil ? String(localized:"Deleted file",bundle:.module) : String(localized:"Modified file",bundle:.module)
         let heading = "\(operation): \(change.path)\n"
         let modeNotice = change.originalMode != nil && change.originalMode != change.mode ? "Mode: \(change.originalMode!) → \(change.mode)\n" : ""
         let before = change.original.flatMap { String(data:$0,encoding:.utf8) }, after = change.updated.flatMap { String(data:$0,encoding:.utf8) }

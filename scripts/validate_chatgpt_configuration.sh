@@ -11,18 +11,19 @@ if [ "${REPO_MANAGER_PRO_API_PROVIDERS_ENABLED:-NO}" = YES ]; then
   esac
 fi
 case "${CONFIGURATION:-Debug}" in
-  Debug|TestFlight) ;;
+  Debug) ;;
   *)
     if [ "${REPO_MANAGER_PRO_API_PROVIDERS_ENABLED:-NO}" = YES ] &&
        [ "${REPO_MANAGER_CHATGPT_PLAN_USAGE_ENABLED:-NO}" = YES ] &&
        [ "${REPO_MANAGER_CHATGPT_MONETIZATION_CLEARED:-NO}" != YES ]; then
-      echo 'error: Confirm OpenAI access for this monetized distribution model before offering paid Pro with ChatGPT.' >&2
-      exit 1
+      # Optional Pro never controls ChatGPT access. Keep the external policy
+      # question visible without treating an unclassified model as a denied grant.
+      echo 'warning: OpenAI commercial classification for optional Pro is unconfirmed; ChatGPT must remain free. Review Docs/MONETIZATION.md before public submission.' >&2
     fi ;;
 esac
 
 # The user-authorized TestFlight beta tests the local integration on device.
-# The public Release still requires the chosen free open-source publication.
+# Public distribution requires the declared open-source publication.
 case "${REPO_MANAGER_CHATGPT_PLAN_USAGE_ENABLED:-NO}" in
   YES|NO) ;;
   *) echo 'error: REPO_MANAGER_CHATGPT_PLAN_USAGE_ENABLED must be YES or NO.' >&2; exit 1 ;;

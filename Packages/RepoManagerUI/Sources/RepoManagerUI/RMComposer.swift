@@ -25,6 +25,7 @@ public struct RMComposer: View {
     private let reasoningControl: AnyView?
     @Environment(\.dynamicTypeSize) private var dynamicType
     @Environment(\.rmMotionIsReduced) private var reduceMotion
+    @State private var writingHeight: CGFloat = 24
     @ScaledMetric(relativeTo: .body) private var glyphSize = RMLayout.standardIcon
     private let writingHorizontalInset = RMLayout.textAdditionalHorizontalInset
 
@@ -64,44 +65,31 @@ public struct RMComposer: View {
                 notice
             }
             VStack(alignment: .leading, spacing: 0) {
-                if let modelControl {
-                    HStack(spacing: RMLayout.elementGap) {
-                        modelControl
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, writingHorizontalInset)
-                    .padding(.bottom, RMLayout.elementGap)
-                }
                 if !attachments.isEmpty {
                     attachmentStrip
                         .padding(.horizontal, writingHorizontalInset)
                         .padding(.bottom, RMLayout.composerAttachmentGap)
                 }
-                if modelControl != nil && !dynamicType.isAccessibilitySize {
-                    HStack(alignment: .bottom, spacing: RMLayout.unit) {
-                        addButton
-                        if let reasoningControl { reasoningControl } else if let thinking, let onThinking {
-                            thinkingButton(isOn: thinking, onToggle: onThinking)
-                        }
-                        writingField.padding(.vertical, RMLayout.elementGap)
-                        actionControls
-                    }
-                    .frame(minHeight: RMLayout.minimumHit)
-                } else {
+                // One mounted field owns focus and selection in both layouts.
+                // Replacing an HStack field with a VStack field loses first responder.
+                ZStack(alignment: .topLeading) {
                     writingField
-                        .padding(.horizontal, writingHorizontalInset)
-                        .padding(.bottom, RMLayout.composerFooterGap)
+                        .padding(.leading, usesExpandedLayout ? writingHorizontalInset : RMLayout.minimumHit)
+                        .padding(.trailing, usesExpandedLayout ? writingHorizontalInset : RMLayout.minimumHit * (microphone == nil ? 1 : 2) + RMLayout.composerMicPrimaryGap)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { writingHeight = $0 }
+                        .padding(.vertical, usesExpandedLayout ? 0 : RMLayout.rowGap)
                     footer
+                        .padding(.top, usesExpandedLayout ? writingHeight + RMLayout.composerFooterGap : 0)
                 }
             }
             .padding(.horizontal, RMLayout.composerSideInset)
-            .padding(.top, RMLayout.composerTopInset)
-            .padding(.bottom, RMLayout.composerBottomInset)
-            .frame(maxWidth: .infinity, minHeight: RMLayout.composerMinimumHeight)
+            .padding(.top, usesExpandedLayout ? RMLayout.composerTopInset : 0)
+            .padding(.bottom, usesExpandedLayout ? RMLayout.composerBottomInset : 0)
+            .frame(maxWidth: .infinity, minHeight: usesExpandedLayout ? RMLayout.composerMinimumHeight : 56)
             // Any tap on the card that no control claims focuses the text.
             .contentShape(composerShape)
             .onTapGesture { focus.wrappedValue = true }
-            .background { RMPanelBackground(cornerRadius:RMLayout.composerCorner,emphasized:focus.wrappedValue) }
+            .glassEffect(.regular, in: composerShape)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("chat.composer.panel")
             .animation(reduceMotion ? nil : .snappy(duration: 0.22), value: attachments.isEmpty)
@@ -117,32 +105,49 @@ public struct RMComposer: View {
     }
 
     private var prompt: Text {
-        Text("Message").foregroundStyle(RMPalette.secondary)
+        Text("Message", bundle: .module).foregroundStyle(RMPalette.secondary)
+    }
+
+    private var usesExpandedLayout: Bool {
+        focus.wrappedValue || dynamicType.isAccessibilitySize || !attachments.isEmpty || text.contains("\n")
     }
 
     private var writingField: some View {
-        TextField("Message", text: $text, prompt: prompt, axis: .vertical)
+        TextField(text: $text, prompt: prompt, axis: .vertical) { Text("Message", bundle:.module) }
             .font(.body)
             .foregroundStyle(RMPalette.text)
             .tint(RMPalette.text)
             .lineLimit(1...6)
+            .autocorrectionDisabled()
             .submitLabel(.return)
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .focused(focus)
-            .accessibilityLabel("Message")
+            .accessibilityLabel(Text("Message", bundle: .module))
             .accessibilityIdentifier("chat.composer.text")
     }
 
     private var footer: some View {
-        HStack(spacing: 0) {
-            addButton
-            if let reasoningControl { reasoningControl } else if let thinking, let onThinking {
-                thinkingButton(isOn: thinking, onToggle: onThinking)
+        VStack(alignment: .leading, spacing: RMLayout.composerFooterGap) {
+            if dynamicType.isAccessibilitySize {
+                HStack(spacing: RMLayout.elementGap) { expandedModelControls }
             }
-            Spacer(minLength: RMLayout.elementGap)
-            actionControls
+            HStack(spacing: 0) {
+                addButton
+                if usesExpandedLayout && !dynamicType.isAccessibilitySize {
+                    expandedModelControls
+                }
+                Spacer(minLength: RMLayout.elementGap)
+                actionControls
+            }
+            .frame(minHeight: RMLayout.minimumHit)
         }
-        .frame(minHeight: RMLayout.minimumHit)
+    }
+
+    @ViewBuilder private var expandedModelControls: some View {
+        if let modelControl { modelControl }
+        if let reasoningControl { reasoningControl } else if let thinking, let onThinking {
+            thinkingButton(isOn: thinking, onToggle: onThinking)
+        }
     }
 
     private var actionControls: some View {
@@ -178,7 +183,7 @@ public struct RMComposer: View {
         }
         .buttonStyle(RMPressButtonStyle())
         .disabled(!canAdd)
-        .accessibilityLabel("Message tools and attachments")
+        .accessibilityLabel(Text("Message tools and attachments", bundle: .module))
         .accessibilityIdentifier("chat.composer.add")
     }
 
@@ -198,9 +203,9 @@ public struct RMComposer: View {
         }
         .buttonStyle(RMPressButtonStyle())
         .disabled(isResponding)
-        .accessibilityLabel("Thinking")
-        .accessibilityValue(isOn ? "On" : "Off")
-        .accessibilityHint("Reason step by step before answering")
+        .accessibilityLabel(Text("Thinking", bundle: .module))
+        .accessibilityValue(isOn ? String(localized:"On",bundle:.module) : String(localized:"Off",bundle:.module))
+        .accessibilityHint(Text("Reason step by step before answering", bundle: .module))
         .accessibilityAddTraits(.isToggle)
         .accessibilityIdentifier("chat.composer.thinking")
     }
@@ -214,7 +219,7 @@ public struct RMComposer: View {
     private var primaryAction: some View {
         RMComposerPrimaryAction(
             symbol: isResponding ? "stop.fill" : (offersVoice ? "waveform" : "arrow.up"),
-            label: isResponding ? "Stop response" : (offersVoice ? "Voice conversation" : "Send message"),
+            label: isResponding ? String(localized:"Stop response",bundle:.module) : (offersVoice ? String(localized:"Voice conversation",bundle:.module) : String(localized:"Send message",bundle:.module)),
             identifier: isResponding ? "chat.composer.stop" : (offersVoice ? "chat.composer.voice" : "chat.composer.send"),
             isEnabled: isResponding ? canStop : (offersVoice || canSend),
             hapticStyle: isResponding ? .medium : .light
@@ -235,7 +240,7 @@ public struct RMComposer: View {
         }
         .scrollClipDisabled()
         .frame(height: ordinaryAttachmentRow ? RMLayout.minimumHit : nil)
-        .accessibilityLabel("Draft attachments")
+        .accessibilityLabel(Text("Draft attachments", bundle: .module))
     }
 
     /// File tokens share a 44-point row. Image previews keep their own height.
@@ -246,7 +251,7 @@ public struct RMComposer: View {
 
 /// The composer's single emphatic control. Its geometry never changes; only the
 /// glyph and meaning move between voice, send and stop, so the trailing corner
-/// stays anchored across states. Stop uses the reference's red fill and subtle glow.
+/// stays anchored across states. Stop uses a high-contrast semantic ink fill.
 private struct RMComposerPrimaryAction: View {
     let symbol: String
     let label: String
@@ -264,11 +269,9 @@ private struct RMComposerPrimaryAction: View {
         } label: {
             Image(systemName: symbol)
                 .font(.system(size: min(glyphSize, RMLayout.composerSendDiameter / 2), weight: .semibold))
-                .foregroundStyle(symbol == "stop.fill" ? Color.white : RMPalette.onSend)
+                .foregroundStyle(symbol == "stop.fill" ? RMPalette.background : RMPalette.onSend)
                 .frame(width: RMLayout.composerSendDiameter, height: RMLayout.composerSendDiameter)
-                .background(symbol == "stop.fill" ? Color.red : RMPalette.send, in: Circle())
-                .overlay { Circle().strokeBorder(.white.opacity(0.28),lineWidth:0.5) }
-                .shadow(color: symbol == "stop.fill" ? .red.opacity(0.3) : .black.opacity(0.14), radius: 8, y: 3)
+                .glassEffect(.regular.tint(symbol == "stop.fill" ? RMPalette.text : RMPalette.send).interactive(), in: Circle())
                 .frame(width: RMLayout.minimumHit, height: RMLayout.minimumHit)
                 .contentShape(Rectangle())
                 .contentTransition(reduceMotion ? .opacity : .symbolEffect(.replace))
@@ -316,7 +319,7 @@ private struct RMComposerAttachment: View {
         .padding(.leading, 12)
         .frame(minHeight: RMLayout.minimumHit)
         .background(RMPalette.input, in: RoundedRectangle(cornerRadius: 14))
-        .accessibilityLabel("Attachment: \(attachment.name)")
+        .accessibilityLabel(Text("Attachment: \(attachment.name)", bundle: .module))
     }
 
     private func removeButton(image: Bool) -> some View {
@@ -330,7 +333,7 @@ private struct RMComposerAttachment: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain).disabled(!canRemove)
-        .accessibilityLabel("Remove \(attachment.name)")
+        .accessibilityLabel(Text("Remove \(attachment.name)", bundle: .module))
     }
 }
 

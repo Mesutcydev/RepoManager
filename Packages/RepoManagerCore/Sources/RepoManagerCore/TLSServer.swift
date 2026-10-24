@@ -214,6 +214,9 @@ public actor HTTPSServer {
         }
     }
     private static func send(_ c: NWConnection, _ data: Data) async throws {
+        // A peer that stops reading must not hold one of the 16 slots: cancelling the connection fails the pending send.
+        let watchdog = Task { try await Task.sleep(for:.seconds(30)); c.cancel() }
+        defer { watchdog.cancel() }
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void,Error>) in
             c.send(content:data,completion:.contentProcessed { error in if error != nil { continuation.resume(throwing:RMError.connection) } else { continuation.resume() } })
         }

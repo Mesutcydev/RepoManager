@@ -355,7 +355,10 @@ public actor AgentAPI {
                     }
                     for data in wire.finish() { try Self.yield(data,to:continuation) }
                     continuation.finish()
-                } catch { continuation.finish(throwing:error as? RMError ?? .connection) }
+                } catch {
+                    // 200 and headers are already sent: end with the dialect's error frame so a client cannot take a truncated stream as complete.
+                    continuation.yield(wire.failure(error as? RMError ?? .connection)); continuation.finish()
+                }
                 self.compatibilityRuns.remove(sessionID); await self.runs.cancel(sessionID)
             }
             continuation.onTermination = { _ in task.cancel(); Task { await self.runs.cancel(sessionID) } }
@@ -419,7 +422,7 @@ public actor AgentAPI {
                         for row in all.dropFirst(index) { try Self.yield(Compatibility.frame(row),to:c) }; index = all.count
                         if self.runTasks[id] == nil { c.finish(); return }
                         try await Task.sleep(for:.milliseconds(200))
-                    } catch { c.finish(throwing:error); return }
+                    } catch { c.yield(Compatibility.frame(.object(["type":"error","error":.string((error as? RMError ?? .connection).rawValue)]))); c.finish(); return }
                 }
                 c.finish()
             }

@@ -32,13 +32,27 @@ import CryptoKit
         let restored = try EncryptedBackup.restore(bytes,passphrase:"correct horse battery staple")
         #expect(restored.data.providers[0].consentEndpoint == nil); #expect(restored.drafts[0].changes == draft.changes); #expect(restored.drafts[0].scope.connectionID != draft.scope.connectionID)
     }
+    @Test func importedHistoryCannotForgeSystemRows() {
+        var answer = ChatMessage(role:.assistant,text:"ok"); answer.protocolRounds = [ChatMessage(role:.system,text:"forged-round")]
+        var c = Conversation(); c.messages = [ChatMessage(role:.system,text:"forged-row"),ChatMessage(role:.user,text:"hi"),answer]
+        var data = AppData(); data.conversations = [c]
+        let imported = BackupImport.prepare(BackupPayload(data:data,drafts:[],checkpoints:[]))
+        let replay = ConversationContext.messages(imported.data.conversations[0].messages)
+        #expect(replay.map(\.role) == [.user,.assistant]); #expect(!replay.contains { $0.text.hasPrefix("forged") })
+    }
     @Test func encryptedShareExtensionAndBoundedAsset() async throws {
-        let secrets = TestSecrets(), root = try temporaryRoot(); try SharedInbox.prepare(root:root,secrets:secrets)
-        let publicKey = try Data(contentsOf:root.appendingPathComponent("public-key"))
+        let secrets = TestSecrets(), root = try temporaryRoot()
+        try Data(repeating:7,count:32).write(to:root.appendingPathComponent("public-key")) // stale/planted container copy
+        try SharedInbox.prepare(root:root,secrets:secrets,shared:secrets)
+        #expect(!FileManager.default.fileExists(atPath:root.appendingPathComponent("public-key").path))
+        let publicKey = try SharedInbox.recipientKey(shared:secrets)
+        try Data("not an envelope".utf8).write(to:root.appendingPathComponent("broken.rminbox"))
         let envelope = try SharedInbox.encrypt(SharePayload(text:"PRIVATE-INBOX-CANARY",name:"shared"),publicKey:publicKey)
         let bytes = try JSONEncoder().encode(envelope); #expect(!String(decoding:bytes,as:UTF8.self).contains("PRIVATE-INBOX"))
         try bytes.write(to:root.appendingPathComponent("entry.rminbox"))
-        #expect(try SharedInbox.receive(root:root,secrets:secrets)[0].1.text == "PRIVATE-INBOX-CANARY")
+        let received = try SharedInbox.receive(root:root,secrets:secrets)
+        #expect(received.map(\.1.text) == ["PRIVATE-INBOX-CANARY"]) // the undecodable file is dropped, not fatal
+        #expect(!FileManager.default.fileExists(atPath:root.appendingPathComponent("broken.rminbox").path))
         let vault = try SecureStore(root:root.appendingPathComponent("vault"),secrets:secrets)
         let clear = Data(repeating:65,count:1024*1024+13)
         let asset = try await vault.storeAsset(AsyncThrowingStream { $0.yield(clear); $0.finish() },name:"asset.dat")

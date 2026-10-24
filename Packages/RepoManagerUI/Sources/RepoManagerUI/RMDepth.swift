@@ -1,5 +1,27 @@
 import SwiftUI
 
+/// One frosted reading surface. Controls inside stay plain so glass does not
+/// accumulate on every row. Accessibility preferences replace blur with a solid fill.
+public struct RMFrostedPanelBackground: View {
+    private let cornerRadius: CGFloat
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.displayScale) private var displayScale
+    public init(cornerRadius: CGFloat = RMLayout.cardCorner) { self.cornerRadius = cornerRadius }
+    public var body: some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        ZStack {
+            if reduceTransparency || contrast == .increased { shape.fill(RMPalette.surface) }
+            else { shape.fill(.thinMaterial) }
+            shape.fill(LinearGradient(colors: [.white.opacity(scheme == .dark ? 0.065 : 0.22), .clear], startPoint: .topLeading, endPoint: .bottomTrailing))
+            shape.strokeBorder(LinearGradient(colors: [.white.opacity(scheme == .dark ? 0.3 : 0.85), RMPalette.line.opacity(contrast == .increased ? 1 : 0.35)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: contrast == .increased ? 1 : RMLayout.hairline(displayScale: displayScale))
+        }
+        .shadow(color: .black.opacity(scheme == .dark ? 0.2 : 0.055), radius: 14, y: 6)
+        .allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
+
 /// Solid, legible surfaces with a light-catching edge and a quiet cast shadow.
 /// Lighting is static: it adds depth without a rendering timer or moving canvas.
 public struct RMPanelBackground: View {

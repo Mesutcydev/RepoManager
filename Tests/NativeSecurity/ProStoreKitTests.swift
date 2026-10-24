@@ -5,6 +5,44 @@ import RepoManagerCore
 @testable import RepoManager
 
 final class ProStoreKitTests: XCTestCase {
+    @MainActor func testFailedPurchaseKeepsAPILockedAndChatGPTFree() async throws {
+        let configuration = try XCTUnwrap(Bundle(for:Self.self).url(forResource:"RepoManagerPro",withExtension:"storekit"))
+        let session = try SKTestSession(contentsOf:configuration)
+        session.resetToDefaultState(); session.disableDialogs = true; session.clearTransactions()
+        defer { session.clearTransactions() }
+        let store = ProStore(enabled:true); await store.loadProduct()
+        // Cancellation is checked on device: this SDK translates its simulated
+        // userCancelled error to StoreKitError.unknown (ASDServerError 907).
+        try await session.setSimulatedError(.purchase(.purchaseNotAllowed),forAPI:.purchase)
+        await store.purchase()
+        XCTAssertFalse(store.unlocked); XCTAssertFalse(store.busy)
+        XCTAssertTrue(store.canPurchase)
+        XCTAssertEqual(store.message,"The purchase couldn’t be completed. You can try again or restore an existing purchase.")
+        XCTAssertTrue(store.requiresUnlock(ProviderProfile(preset:.openAI)))
+        var chatgpt = ProviderProfile(preset:.openAI); chatgpt.authentication = .chatGPT
+        try await store.access.require(chatgpt)
+    }
+
+    @MainActor func testPendingApprovalKeepsAPILockedAndChatGPTFree() async throws {
+        let configuration = try XCTUnwrap(Bundle(for:Self.self).url(forResource:"RepoManagerPro",withExtension:"storekit"))
+        let session = try SKTestSession(contentsOf:configuration)
+        session.resetToDefaultState(); session.disableDialogs = true; session.clearTransactions()
+        session.askToBuyEnabled = true
+        defer { session.clearTransactions() }
+        let store = ProStore(enabled:true); store.start(); await store.loadProduct(); await store.purchase()
+        XCTAssertFalse(store.unlocked); XCTAssertFalse(store.busy)
+        XCTAssertFalse(store.canPurchase,"A pending approval must prevent repeated purchase attempts")
+        XCTAssertEqual(store.message,"Purchase approval is pending. Pro will unlock when the App Store confirms it.")
+        var chatgpt = ProviderProfile(preset:.openAI); chatgpt.authentication = .chatGPT
+        try await store.access.require(chatgpt)
+        XCTAssertTrue(store.requiresUnlock(ProviderProfile(preset:.openAI)))
+        let pending = try XCTUnwrap(session.allTransactions().first)
+        try session.approveAskToBuyTransaction(identifier:pending.identifier)
+        let deadline = ContinuousClock.now.advanced(by:.seconds(5))
+        while !store.unlocked && ContinuousClock.now < deadline { try await Task.sleep(for:.milliseconds(50)) }
+        XCTAssertTrue(store.unlocked); try await store.access.require(ProviderProfile(preset:.openAI))
+    }
+
     @MainActor func testVerifiedPurchaseRestoreAndRefundControlsOnlyAPIProviders() async throws {
         XCTAssertFalse(DevelopmentFixtures.pro,"This test must exercise StoreKit, not the UI preview.")
         let configuration = try XCTUnwrap(Bundle(for:Self.self).url(forResource:"RepoManagerPro",withExtension:"storekit"))

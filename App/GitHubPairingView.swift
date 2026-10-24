@@ -35,7 +35,7 @@ struct GitHubPairingView: View {
                         Button { model.githubSignIn.begin(using: model) } label: {
                             HStack(spacing: RMLayout.elementGap) {
                                 if model.githubSignIn.busy { ProgressView().tint(RMPalette.onSend) }
-                                Text(model.githubSignIn.busy ? "Connecting…" : "Continue with GitHub")
+                                Text(model.githubSignIn.busy ? String(localized:"Connecting…") : String(localized:"Continue with GitHub"))
                                 Spacer(minLength: RMLayout.elementGap)
                                 Image(systemName: "arrow.up.forward.app")
                             }
@@ -43,7 +43,7 @@ struct GitHubPairingView: View {
                             .accessibilityIdentifier("github.connect")
                     } else {
                         RMInlineNotice(title: "Update to connect GitHub",
-                            detail: "GitHub sign-in is unavailable in this build. Update Repo Manager, or use a fine-grained token below.",
+                            detail: String(localized:"GitHub sign-in is unavailable in this build. Update Repo Manager, or use a fine-grained token below."),
                             symbol: "arrow.down.app")
                             .accessibilityIdentifier("github.configurationUnavailable")
                     }
@@ -59,7 +59,7 @@ struct GitHubPairingView: View {
                         .font(RMType.meta).foregroundStyle(RMPalette.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     Divider()
-                    Button(advanced ? "Hide token connection" : "Use a token instead") { advanced.toggle(); pat = "" }
+                    Button(advanced ? String(localized:"Hide token connection") : String(localized:"Use a token instead")) { advanced.toggle(); pat = "" }
                         .rmTextButton().disabled(model.githubSignIn.busy)
                         .accessibilityIdentifier("github.advanced")
                     if advanced {
@@ -89,7 +89,7 @@ private struct GitHubConnectionHeading: View {
     var body: some View {
         VStack(alignment: .leading, spacing: RMLayout.cardInset) {
             RMBrandGlyph().frame(width: RMLayout.heroTile, height: RMLayout.heroTile)
-            RMPageHeading("Connect GitHub", detail: "Sign in with Safari. You choose the repositories Repo Manager can access.")
+            RMPageHeading(String(localized:"Connect GitHub"), detail: String(localized:"Sign in with Safari. You choose the repositories Repo Manager can access."))
         }
     }
 }
@@ -111,12 +111,12 @@ private struct GitHubDeviceCodeView: View {
                 Button {
                     SafeClipboard.copyResponse(authorization.userCode); copied = true
                 } label: { Image(systemName: copied ? "checkmark" : "doc.on.doc") }
-                    .rmIconButton().accessibilityLabel(copied ? "Code copied" : "Copy GitHub code")
+                    .rmIconButton().accessibilityLabel(copied ? String(localized:"Code copied") : String(localized:"Copy GitHub code"))
                     .accessibilityIdentifier("github.copyCode")
             }
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 VStack(alignment:.leading,spacing:RMLayout.cardInset) {
-                    Text(context.date >= authorization.expires ? "This code has expired. Cancel and start again." : "Code expires in \(max(0, Int(authorization.expires.timeIntervalSince(context.date)))) seconds.")
+                    Text(context.date >= authorization.expires ? String(localized:"This code has expired. Cancel and start again.") : String(localized:"Code expires in \(max(0, Int(authorization.expires.timeIntervalSince(context.date)))) seconds."))
                         .font(RMType.meta).foregroundStyle(RMPalette.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     Button {

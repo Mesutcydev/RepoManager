@@ -2,11 +2,11 @@
 
 A free, MIT-licensed native GitHub workspace for iPhone, iPad and Apple silicon Macs through Mac Catalyst. Chat with a selected model, inspect repository context, stage changes locally, and review GitHub changes before publication.
 
-Complete MIT source is public at [Mesutcydev/RepoManager](https://github.com/Mesutcydev/RepoManager). It includes official **Continue with ChatGPT** for local/personal Debug builds and the user-authorized TestFlight beta. Eligible Plus and Pro users can authorize their plan for eligible AI requests without an API key. The source URL is configured; public Release ChatGPT remains disabled while the proposed monetized distribution model awaits the applicable OpenAI access decision. [OpenAI quickstart](https://developers.openai.com/siwc/quickstart).
+Complete MIT source is public at [Mesutcydev/RepoManager](https://github.com/Mesutcydev/RepoManager). This source includes official **Continue with ChatGPT**, enabled in Debug, TestFlight and Release. Eligible Plus and Pro users can authorize their plan for eligible AI requests without an API key. ChatGPT sign-in and eligible plan usage remain free in Repo Manager. The external policy classification of optional paid API-provider features is recorded in [MONETIZATION.md](Docs/MONETIZATION.md); no commercial-access approval is claimed. [OpenAI quickstart](https://developers.openai.com/siwc/quickstart).
 
 ## Build
 
-Requires macOS, Xcode 27, Swift 6 and XcodeGen 2.44 or later. Minimum iOS/iPadOS and Mac Catalyst targets are 26.
+Requires macOS, Xcode 27.1, Swift 6 and XcodeGen 2.44 or later. Minimum iOS/iPadOS and Mac Catalyst targets are 26.
 
 ```sh
 cd RepoManager
@@ -32,7 +32,7 @@ xcodebuild -project RepoManager.xcodeproj -scheme RepoManager \
 
 The current app is free. API-key usage is billed by the selected provider. Authorized ChatGPT requests consume the user's eligible allowance or permitted credits; manage access and limits in ChatGPT settings.
 
-An optional $9.99 one-time Pro unlock is prepared for API-provider/custom-endpoint support, with ChatGPT connection and Apple Intelligence included. Pro rollout is disabled in every distribution configuration. The OpenAI access request has been received; the applicable access decision and completed App Store setup/testing are pending. The non-consumable draft and $9.99 US price are saved. See [the monetization plan](Docs/MONETIZATION.md).
+Optional $9.99 one-time Pro unlocks API-key providers and custom compatible HTTPS endpoints. ChatGPT, Apple Intelligence on supported devices and the GitHub workspace remain included. Pro is enabled in the release candidate; the App Store product is configured, while physical-device Sandbox acceptance and public review remain pending. Provider API usage is billed separately. See [the monetization plan](Docs/MONETIZATION.md).
 
 ## Documentation
 

@@ -15,22 +15,23 @@ struct SchemaFields: View {
             let field = schema["properties"][key]
             VStack(alignment:.leading,spacing:RMLayout.elementGap) {
                 if !required.contains(key) {
-                    Toggle("Include \(label(key).lowercased())",isOn:Binding(get:{ value[key] != .null },set:{ included in
+                    Toggle("Include \(label(key))",isOn:Binding(get:{ value[key] != .null },set:{ included in
                         set(included ? ToolFormView.sample(field) : .null,key:key)
                         if !included { let prefix = path+"/"+key; invalidFields = invalidFields.filter { $0 != prefix && !$0.hasPrefix(prefix+"/") } }
                     })).font(RMType.meta)
                 }
                 if required.contains(key) || value[key] != .null {
-                    SchemaInput(title:label(key),schema:field,value:Binding(get:{ value[key] },set:{ set($0,key:key) }),invalidFields:$invalidFields,depth:depth,path:path+"/"+key)
+                    SchemaInput(title:label(key),fieldKey:key,schema:field,value:Binding(get:{ value[key] },set:{ set($0,key:key) }),invalidFields:$invalidFields,depth:depth,path:path+"/"+key)
                 }
             }
         }
     }
-    private func label(_ key:String) -> String { key.replacingOccurrences(of:"_",with:" ").capitalized }
+    private func label(_ key:String) -> String { RMLocalization.fieldName(key) }
     private func set(_ field:JSON,key:String) { var object = value.object ?? [:]; if field == .null { object.removeValue(forKey:key) } else { object[key] = field }; value = .object(object) }
 }
 private struct SchemaInput: View {
-    let title: String; let schema: JSON
+    let title: String; let fieldKey: String; let schema: JSON
+    @Environment(\.locale) private var locale
     @Binding var value: JSON
     @Binding var invalidFields:Set<String>
     var depth: Int
@@ -39,7 +40,7 @@ private struct SchemaInput: View {
     @State private var numberText = ""
     @ViewBuilder var body: some View {
         if let choices = schema["enum"].array?.compactMap(\.string), !choices.isEmpty {
-            Picker(title,selection:Binding(get:{ value.string ?? choices[0] },set:{ value = .string($0) })) { ForEach(choices,id:\.self) { Text($0).tag($0) } }
+            Picker(title,selection:Binding(get:{ value.string ?? choices[0] },set:{ value = .string($0) })) { ForEach(choices,id:\.self) { Text(RMLocalization.fieldName($0)).tag($0) } }
         } else if schema["type"].string == "boolean" {
             Toggle(title,isOn:Binding(get:{ value.bool ?? false },set:{ value = .bool($0) }))
         } else if schema["type"].string == "object" && depth < 4 && schema["properties"].object != nil {
@@ -60,16 +61,16 @@ private struct SchemaInput: View {
         } else if ["integer","number"].contains(schema["type"].string ?? "") {
             VStack(alignment:.leading,spacing:RMLayout.unit) {
                 TextField(title,text:$numberText).keyboardType(.numbersAndPunctuation)
-                    .onAppear { if case .number(let number) = value { numberText = value.int.map(String.init) ?? String(number) } }
+                    .onAppear { if case .number(let number) = value { numberText = number.formatted(.number.grouping(.never).precision(.significantDigits(1...17)).locale(locale)) } }
                     .onChange(of:numberText) { _, text in
-                        if let number = Double(text),number.isFinite,(try? Schema.validate(.number(number),against:schema)) != nil {
+                        if let number = try? Double(text,format:.number.locale(locale),lenient:false),number.isFinite,(try? Schema.validate(.number(number),against:schema)) != nil {
                             value = .number(number); invalidFields.remove(path)
                         } else { invalidFields.insert(path) }
                     }
-                if invalidFields.contains(path) { Text("Enter a valid \(schema["type"].string == "integer" ? "whole number" : "number").").font(RMType.meta).foregroundStyle(RMPalette.red) }
+                if invalidFields.contains(path) { Text(schema["type"].string == "integer" ? String(localized:"Enter a valid whole number.") : String(localized:"Enter a valid number.")).font(RMType.meta).foregroundStyle(RMPalette.red) }
             }
         } else {
-            TextField(title,text:Binding(get:{ value.string ?? "" },set:{ value = .string($0) }),axis:title.lowercased().contains("body") || title.lowercased().contains("content") ? .vertical : .horizontal)
+            TextField(title,text:Binding(get:{ value.string ?? "" },set:{ value = .string($0) }),axis:fieldKey.contains("body") || fieldKey.contains("content") ? .vertical : .horizontal)
                 .lineLimit(1...8).autocorrectionDisabled().textInputAutocapitalization(.never)
         }
     }

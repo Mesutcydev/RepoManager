@@ -33,7 +33,7 @@ struct ChatGPTAccountView: View {
                                 requestConsent:session?.connected == true && session?.planUsageEnabled != true)
                         }.disabled(busy || !consent || title.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty)
                         if model.chatGPTSignIn.busy,model.chatGPTSignIn.profileID == initial.id {
-                            Text(model.chatGPTSignIn.waitingForSafari ? "Waiting for approval in Safari…" : "Finishing connection…")
+                            Text(model.chatGPTSignIn.waitingForSafari ? String(localized:"Waiting for approval in Safari…") : String(localized:"Finishing connection…"))
                                 .accessibilityIdentifier("chatgpt.pending")
                             if model.chatGPTSignIn.waitingForSafari {
                                 Button("Open Safari") {

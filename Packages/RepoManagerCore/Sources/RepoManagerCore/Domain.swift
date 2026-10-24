@@ -3,29 +3,30 @@ import Foundation
 public enum RMError: String, Error, LocalizedError, Sendable {
     case locked, missingKey, corruptRecord, invalidInput, insecureURL, forbidden, staleReview,
          cancelled, tooLarge, unsupported, connection, authentication, upstream, rateLimited,
-         uncertainWrite, conflict, unavailable, consentRequired, noProvider, proRequired
+         uncertainWrite, conflict, unavailable, consentRequired, noProvider, proRequired, emptyResponse
     public var errorDescription: String? {
         switch self {
-        case .locked: "Unlock the device to access Repo Manager."
-        case .missingKey: "The encryption key is unavailable. Existing encrypted data has been preserved."
-        case .corruptRecord: "This encrypted record failed verification. It has been preserved."
-        case .invalidInput: "The request contains invalid or unsupported values."
-        case .insecureURL: "Use an HTTPS URL without credentials or a private network destination."
-        case .forbidden: "The current connection does not permit this operation."
-        case .staleReview: "The target or draft changed. Prepare a new review."
-        case .cancelled: "The operation was cancelled. Your draft is retained."
-        case .tooLarge: "The configured size or coverage limit was reached."
-        case .unsupported: "This feature or protocol option is unsupported."
-        case .connection: "The connection failed. Retry explicitly when ready."
-        case .authentication: "Authentication is required. Reconnect explicitly."
-        case .upstream: "The service rejected the request. No raw service content is shown."
-        case .rateLimited: "The service rate limit was reached. Retry later."
-        case .uncertainWrite: "The result is uncertain. Reconcile the remote state before retrying."
-        case .conflict: "The remote branch or target advanced. Your draft is retained."
-        case .unavailable: "This capability is unavailable for this account or device."
-        case .consentRequired: "Review the destination disclosure before sending content."
-        case .noProvider: "Choose a provider and select a model first."
-        case .proRequired: "This API provider requires Repo Manager Pro. Open Providers to purchase or restore the one-time unlock. ChatGPT connection and Apple Intelligence remain included."
+        case .locked: String(localized:"Unlock the device to access Repo Manager.",bundle:.module)
+        case .missingKey: String(localized:"The encryption key is unavailable. Existing encrypted data has been preserved.",bundle:.module)
+        case .corruptRecord: String(localized:"This encrypted record failed verification. It has been preserved.",bundle:.module)
+        case .invalidInput: String(localized:"The request contains invalid or unsupported values.",bundle:.module)
+        case .insecureURL: String(localized:"Use an HTTPS URL without credentials or a private network destination.",bundle:.module)
+        case .forbidden: String(localized:"The current connection does not permit this operation.",bundle:.module)
+        case .staleReview: String(localized:"The target or draft changed. Prepare a new review.",bundle:.module)
+        case .cancelled: String(localized:"The operation was cancelled. Your draft is retained.",bundle:.module)
+        case .tooLarge: String(localized:"The configured size or coverage limit was reached.",bundle:.module)
+        case .unsupported: String(localized:"This feature or protocol option is unsupported.",bundle:.module)
+        case .connection: String(localized:"The connection failed. Retry explicitly when ready.",bundle:.module)
+        case .authentication: String(localized:"Authentication is required. Reconnect explicitly.",bundle:.module)
+        case .upstream: String(localized:"The service rejected the request. No raw service content is shown.",bundle:.module)
+        case .emptyResponse: String(localized:"The model finished without a reply or tool call. Your draft is retained. Try again explicitly.",bundle:.module)
+        case .rateLimited: String(localized:"The service rate limit was reached. Retry later.",bundle:.module)
+        case .uncertainWrite: String(localized:"The result is uncertain. Reconcile the remote state before retrying.",bundle:.module)
+        case .conflict: String(localized:"The remote branch or target advanced. Your draft is retained.",bundle:.module)
+        case .unavailable: String(localized:"This capability is unavailable for this account or device.",bundle:.module)
+        case .consentRequired: String(localized:"Review the destination disclosure before sending content.",bundle:.module)
+        case .noProvider: String(localized:"Choose a provider and select a model first.",bundle:.module)
+        case .proRequired: String(localized:"This API provider requires Repo Manager Pro. Open Providers to purchase or restore the one-time unlock. ChatGPT connection and Apple Intelligence remain included.",bundle:.module)
         }
     }
 }
@@ -73,6 +74,7 @@ public enum ProviderPreset: String, Codable, CaseIterable, Identifiable, Sendabl
     public var id: String { rawValue }
     public var title: String {
         switch self {
+        case .custom: String(localized:"Custom",bundle:.module)
         case .apple: "Apple"; case .openAI: "OpenAI"; case .xAI: "xAI"; case .openCodeGo: "OpenCode Go"; case .openCodeZen: "OpenCode Zen"
         case .openRouterFree: "OpenRouter Free"; case .openRouter: "OpenRouter"; case .qwenCode: "Qwen Code"
         case .kimiCode: "Kimi Code"; case .longCat: "LongCat"; case .deepSeek: "DeepSeek"
@@ -191,6 +193,8 @@ public struct ChatMessage: Codable, Identifiable, Equatable, Sendable {
     public var id = UUID()
     public var role: MessageRole
     public var text: String
+    /// The user request this follow-up depends on, independent of localized copy.
+    public var continuationOf: UUID?
     public var reasoning = ""
     public var reasoningStartedAt: Date?
     public var reasoningSeconds: Int?
@@ -204,6 +208,7 @@ public struct ChatMessage: Codable, Identifiable, Equatable, Sendable {
     public var pricing: MessagePricing?
     public var created = Date()
     public var finishReason: String?
+    public var responseIssue: String?
     public init(role: MessageRole, text: String = "", toolCallID: String? = nil) { self.role = role; self.text = text; self.toolCallID = toolCallID }
 }
 public struct Attachment: Codable, Identifiable, Equatable, Sendable {
@@ -215,7 +220,7 @@ public struct Attachment: Codable, Identifiable, Equatable, Sendable {
 }
 public struct Conversation: Codable, Identifiable, Equatable, Sendable {
     public var id = UUID()
-    public var title = "New chat"
+    public var title = String(localized:"New chat",bundle:.module)
     public var messages: [ChatMessage] = []
     public var draft = ""
     public var attachments: [Attachment] = []
@@ -235,6 +240,10 @@ public struct Conversation: Codable, Identifiable, Equatable, Sendable {
     public var modified = Date()
     public var contextNotice: String?
     public var fileEditorDrafts: [String:String]?
+    /// Optional for compatibility with encrypted histories from earlier versions.
+    public var contextCheckpoint: SessionContextCheckpoint?
+    public var modelChanges: [SessionModelChange]?
+    public var forkedFrom: UUID?
     public init() {}
 }
 public struct Persona: Codable, Identifiable, Equatable, Sendable {
@@ -323,11 +332,14 @@ public struct AppData: Codable, Sendable {
     public var accounts: [GitHubAccount] = []; public var preferences = AppPreferences()
     public var personas = Persona.defaults; public var macros: [PromptMacro] = []
     public var tombstones: [UUID: Date] = [:]
+    /// Device-local presentation preferences; excluded from HistoryRecord sync.
+    public var sessionStates: [UUID:SessionDeviceState]?
     public init() {}
 }
 public enum ChatEvent: Sendable, Equatable {
     case text(String), reasoning(String), tool(ToolCall), usage(Usage), finish(String), error(RMError), compaction(String), result(ToolResult)
     case reasoningConfiguration(ReasoningDecision), providerState(JSON)
+    /// Latest snapshot of one provider round, identified by its assistant ID.
     case protocolRound([ChatMessage])
 }
 public struct RunRequest: Sendable {
@@ -338,7 +350,7 @@ public struct RunRequest: Sendable {
     public var reasoningDecision: ReasoningDecision?
     public var latencySensitive = false
     public init(conversationID: UUID, profile: ProviderProfile, model: String, messages: [ChatMessage], tools: [ToolDefinition] = [],
-                inputBudget: Int = 8192, outputBudget: Int = 4096, thinking: Bool = false) {
+                inputBudget: Int = 65536, outputBudget: Int = 4096, thinking: Bool = false) {
         self.conversationID = conversationID; self.profile = profile; self.model = model; self.messages = messages; self.tools = tools
         self.inputBudget = inputBudget; self.outputBudget = outputBudget; self.thinking = thinking
     }

@@ -101,7 +101,83 @@ private func connectedProfile(_ secrets: TestSecrets, expires: Date = chatGPTTes
     profile.chatGPTAccount = account; return profile
 }
 
+private struct StreamTailFixture: HTTPTransport {
+    let bytes: Data
+    let reset: Bool
+    var separatePackets = false
+    func send(_ request: URLRequest, limit: Int) async throws -> HTTPResult { throw RMError.unsupported }
+    func stream(_ request: URLRequest, limit: Int) -> AsyncThrowingStream<Data, Error> { AsyncThrowingStream { $0.finish(throwing: RMError.unsupported) } }
+    func streamResponse(_ request: URLRequest, limit: Int) -> AsyncThrowingStream<HTTPStreamEvent, Error> {
+        AsyncThrowingStream { output in
+            let task = Task {
+                output.yield(.response(status: 200, headers: [:]))
+                if separatePackets {
+                    for frame in String(decoding:bytes,as:UTF8.self).components(separatedBy:"\n\n") where !frame.isEmpty {
+                        output.yield(.data(Data((frame+"\n\n").utf8)))
+                    }
+                } else { output.yield(.data(bytes)) }
+                do {
+                    if reset { throw RMError.connection }
+                    try await Task.sleep(for: .seconds(2))
+                    output.finish()
+                } catch { output.finish(throwing: error) }
+            }
+            output.onTermination = { _ in task.cancel() }
+        }
+    }
+}
+
+private func streamFixtureFrame(_ root: JSON) throws -> Data {
+    Data("data: ".utf8) + (try JSONEncoder().encode(root)) + Data("\n\n".utf8)
+}
+
 @Suite struct ChatGPTTests {
+    @Test(arguments: [false, true]) func completedResponseEndsBeforeSocketTail(_ reset: Bool) async throws {
+        let secrets = TestSecrets(), auth = ChatGPTFixture(), profile = try connectedProfile(secrets)
+        let bytes = try streamFixtureFrame(.object(["type": "response.output_text.delta", "delta": "Completed answer"]))
+            + streamFixtureFrame(.object(["type": "response.completed", "response": .object(["usage": .object(["input_tokens": 881, "output_tokens": 100])])]))
+        let client = ChatGPTProviderClient(connections: store(secrets, auth), transport: StreamTailFixture(bytes: bytes, reset: reset))
+        let clock = ContinuousClock(), start = clock.now
+        var text = "", finish: String?, usage: Usage?
+        for try await event in client.stream(.init(conversationID: UUID(), profile: profile, model: "account-model", messages: [.init(role: .user, text: "Review")])) {
+            switch event { case .text(let value): text += value; case .finish(let value): finish = value; case .usage(let value): usage = value; default: break }
+        }
+        #expect(text == "Completed answer" && finish == "stop")
+        #expect(usage?.input == 881 && usage?.output == 100)
+        #expect(start.duration(to: clock.now) < .seconds(1), "A terminal provider response must not wait for TCP shutdown")
+    }
+
+    @Test func interruptedResponseWithoutCompletionStillFails() async throws {
+        let secrets = TestSecrets(), auth = ChatGPTFixture(), profile = try connectedProfile(secrets)
+        let bytes = try streamFixtureFrame(.object(["type": "response.output_text.delta", "delta": "Partial answer"]))
+        let client = ChatGPTProviderClient(connections: store(secrets, auth), transport: StreamTailFixture(bytes: bytes, reset: true))
+        var finish = false
+        await #expect(throws: RMError.connection) {
+            for try await event in client.stream(.init(conversationID: UUID(), profile: profile, model: "account-model", messages: [.init(role: .user, text: "Review")])) {
+                if case .finish = event { finish = true }
+            }
+        }
+        #expect(!finish)
+    }
+
+    @Test(arguments:[false,true]) func burstDeltasRemainLosslessForSlowConsumer(_ separatePackets:Bool) async throws {
+        let secrets = TestSecrets(), auth = ChatGPTFixture(), profile = try connectedProfile(secrets)
+        var bytes = Data(), expected = ""
+        for index in 0..<500 {
+            let delta = "\(index) 👩🏽‍💻 "
+            expected += delta
+            bytes += try streamFixtureFrame(.object(["type": "response.output_text.delta", "delta": .string(delta)]))
+        }
+        bytes += try streamFixtureFrame(.object(["type": "response.completed", "response": .object([:])]))
+        let client = ChatGPTProviderClient(connections: store(secrets, auth), transport: StreamTailFixture(bytes: bytes, reset: false,separatePackets:separatePackets))
+        var text = "", finish = false, paused = false
+        for try await event in client.stream(.init(conversationID: UUID(), profile: profile, model: "account-model", messages: [.init(role: .user, text: "Review")])) {
+            if !paused { paused = true; try await Task.sleep(for: .milliseconds(100)) }
+            switch event { case .text(let value): text += value; case .finish("stop"): finish = true; default: break }
+        }
+        #expect(text == expected && finish, "One received packet may contain hundreds of deltas; every byte must survive")
+    }
+
     @Test func dynamicRegistrationAndStableHost() async throws {
         let secrets = TestSecrets(), fixture = ChatGPTFixture(), id = UUID()
         let connections = store(secrets, fixture), uri = URL(string: "http://127.0.0.1:1455/auth/callback")!
@@ -413,6 +489,164 @@ private func connectedProfile(_ secrets: TestSecrets, expires: Date = chatGPTTes
             #expect(try await waiting.value == callbackURL(attempt))
             await listener.stop()
         } catch { await listener.stop(); throw error }
+    }
+}
+
+extension ChatGPTTests {
+    @Test func requestFailureDisplaysOnlyBoundedDiagnostics() {
+        let failure = ChatGPTServiceError(status: 400, body: .object(["error": .object(["code": "invalid_request_error", "param": "input[2].call_id", "message": "synthetic-secret"])]))
+        #expect(failure.localizedDescription.contains("HTTP 400"))
+        #expect(failure.localizedDescription.contains("invalid_request_error"))
+        #expect(failure.localizedDescription.contains("input[2].call_id"))
+        #expect(!failure.localizedDescription.contains("synthetic-secret"))
+        let malformed = ChatGPTServiceError(status: 500, body: .object(["error": .object(["code": "synthetic-secret", "param": "input.synthetic-secret", "message": "synthetic-secret"])]))
+        #expect(!malformed.localizedDescription.contains("synthetic-secret"))
+    }
+
+    @Test func completedOutputRejectsForeignToolNamespaces() async throws {
+        let secrets = TestSecrets(), fixture = ChatGPTFixture(), profile = try connectedProfile(secrets)
+        let root: JSON = .object(["type": "response.completed", "response": .object(["output": .array([
+            .object(["type": "function_call", "id": "fc_foreign", "call_id": "call_foreign", "namespace": "foreign", "name": "calculator", "arguments": "{}"])
+        ])])])
+        var data = Data("data: ".utf8); data.append(try JSONEncoder().encode(root)); data.append(Data("\n\n".utf8))
+        await fixture.configureInference(HTTPResult(status: 200, data: data))
+        let provider = ChatGPTProviderClient(connections: store(secrets, fixture), transport: TestTransport(handler: { try await fixture.handle($0) }))
+        var events: [ChatEvent] = []
+        do {
+            for try await event in provider.stream(.init(conversationID: UUID(), profile: profile, model: "account-model", messages: [.init(role: .user, text: "Calculate")])) { events.append(event) }
+            Issue.record("A foreign namespace was accepted")
+        } catch let error as RMError { #expect(error == .upstream) }
+        #expect(!events.contains { if case .tool = $0 { true } else { false } })
+    }
+
+    @Test(arguments: [false, true], [8192, 65536])
+    func repositoryToolsReplayNativeOutputAndCanAuditAgain(thinking: Bool, budget: Int) async throws {
+        let services = try await FixtureServices.make()
+        await services.fixture.configureTree((0..<500).map { index in
+            .object(["path": .string("Sources/Feature\(index)/RepositoryAuditAndPresentationSettings.swift"),
+                     "type": "blob", "mode": "100644", "sha": .string(blobSHA), "size": 8])
+        })
+        let secrets = TestSecrets(), auth = ChatGPTFixture(), wire = ChatGPTReplayFixture(requiresCompaction: budget == 8192)
+        var profile = try connectedProfile(secrets)
+        profile.models = [ModelMetadata(id: "gpt-6.1-sol")]
+        let provider = ChatGPTProviderClient(connections: store(secrets, auth), transport: TestTransport(handler: { try await wire.handle($0) }))
+        let runner = RunCoordinator(provider: provider, tools: services.tools, approvals: services.approvals)
+        let id = UUID(), user = ChatMessage(role: .user, text: "Audit repo for cleanup and better display")
+        var history = [user]
+        for _ in 0..<2 {
+            var response = ChatMessage(role: .assistant)
+            let input = RunRequest(conversationID: id, profile: profile, model: "gpt-6.1-sol", messages: history, inputBudget: budget, thinking: thinking)
+            var events: [ChatEvent] = []
+            for try await event in await runner.stream(input, context: ScopedToolContext(conversationID: id, repository: services.scope, mode: .plan)) {
+                events.append(event)
+                if case .protocolRound(let rows) = event { ConversationContext.record(rows,in:&response) }
+            }
+            #expect(events.contains { if case .text("Repository audit completed.") = $0 { true } else { false } })
+            #expect(events.contains { if case .finish("stop") = $0 { true } else { false } })
+            if budget == 8192 { #expect(events.contains { if case .compaction(let text) = $0 { text.contains("long tool results") } else { false } }) }
+            let results = events.compactMap { if case .result(let result) = $0, result.status == .success { result } else { nil } }
+            #expect(results.map(\.name) == ["repository_context_map", "list_files"])
+            history += ConversationContext.messages([response]); history.append(user)
+        }
+        #expect(await wire.count() == 4)
+        #expect(await services.fixture.writes().isEmpty)
+    }
+
+    @Test func completedResponseCanCarryTheAuthoritativeToolItems() throws {
+        var decoder = ProviderEventDecoder(format: .responses)
+        let native = ChatGPTReplayFixture.items(turn: 0)
+        let root: JSON = .object(["type": "response.completed", "response": .object(["output": .array(native)])])
+        let events = try decoder.decode(SSEFrame(event: "message", data: root.encoded))
+        let calls = events.compactMap { if case .tool(let call) = $0 { call } else { nil } }
+        #expect(calls.map(\.name) == ["repository_context_map", "list_files"])
+        let state = try #require(events.compactMap { if case .providerState(let value) = $0 { value } else { nil } }.last)
+        var profile = chatGPTProfile(); profile.models = [ModelMetadata(id: "gpt-6.1-sol")]
+        var answer = ChatMessage(role: .assistant, text: "Inspecting the repository."); answer.calls = calls
+        answer.providerContinuation = ProviderContinuation(profileID: profile.id, modelID: "gpt-6.1-sol", endpoint: profile.endpoint, payload: state)
+        let body = try ProviderWire.body(RunRequest(conversationID: UUID(), profile: profile, model: "gpt-6.1-sol", messages: [.init(role: .user, text: "Audit"), answer]))
+        #expect(Array(try #require(body["input"].array).dropFirst()) == native)
+    }
+
+    @Test func oldEncryptedReasoningDoesNotReferenceAnUnstoredItem() throws {
+        let profile = chatGPTProfile(), model = "account-model"
+        var answer = ChatMessage(role: .assistant)
+        answer.calls = [.init(id: "call_old", name: "list_files", arguments: .object([:]))]
+        answer.providerContinuation = ProviderContinuation(profileID: profile.id, modelID: model, endpoint: profile.endpoint,
+            payload: .object(["responses": .array([.object(["type": "reasoning", "id": "rs_unstored", "encrypted_content": "opaque-legacy", "summary": .array([])])])]))
+        let input = RunRequest(conversationID: UUID(), profile: profile, model: model,
+                               messages: [.init(role: .user, text: "Audit"), answer, .init(role: .tool, text: "Result", toolCallID: "call_old")])
+        let reasoning = try #require(try ProviderWire.body(input)["input"].array?.first(where: { $0["type"].string == "reasoning" }))
+        #expect(reasoning["id"] == .null)
+        #expect(reasoning["encrypted_content"].string == "opaque-legacy")
+    }
+
+    @Test(arguments: [0, 1, 2]) func interruptedVisibleToolsDoNotReplayUnmatchedOrDuplicateCalls(completed: Int) throws {
+        let profile = chatGPTProfile(), model = "account-model", native = ChatGPTReplayFixture.items(turn: 0)
+        let calls = native.filter { $0["type"].string == "function_call" }.map {
+            ToolCall(id: $0["call_id"].string!, name: $0["name"].string!, arguments: .object([:]))
+        }
+        var answer = ChatMessage(role: .assistant, text: "Inspecting the repository."); answer.calls = calls
+        answer.providerContinuation = ProviderContinuation(profileID: profile.id, modelID: model, endpoint: profile.endpoint,
+                                                          payload: .object(["responses_output": .array(native)]))
+        answer.tools = calls.prefix(completed).map { ToolResult(id: $0.id, name: $0.name, detail: "Result", status: .success) }
+        let messages = ConversationContext.messages([.init(role: .user, text: "Audit"), answer])
+        let body = try ProviderWire.body(RunRequest(conversationID: UUID(), profile: profile, model: model, messages: messages))
+        let items = try #require(body["input"].array)
+        #expect(items.filter { $0["type"].string == "function_call" }.count == completed)
+        #expect(items.filter { $0["type"].string == "function_call_output" }.count == completed)
+        #expect(items.filter { $0["type"].string == "reasoning" }.count == (completed == 2 ? 2 : 0))
+    }
+}
+
+/// Rejects the same malformed stateless continuation a real Responses server
+/// rejects. No credentials, live inference or GitHub writes leave the fixtures.
+private actor ChatGPTReplayFixture {
+    private var requests = 0
+    private let requiresCompaction: Bool
+    init(requiresCompaction: Bool = true) { self.requiresCompaction = requiresCompaction }
+    static func items(turn: Int) -> [JSON] {
+        [.object(["type": "reasoning", "id": .string("rs_first_\(turn)"), "encrypted_content": "opaque-first", "summary": .array([])]),
+         .object(["type": "message", "id": .string("msg_commentary_\(turn)"), "role": "assistant", "phase": "commentary", "status": "completed",
+                  "content": .array([.object(["type": "output_text", "text": "Inspecting the repository.", "annotations": .array([])])])]),
+         .object(["type": "function_call", "id": .string("fc_z_first_\(turn)"), "call_id": .string("call_map_\(turn)"), "name": "repository_context_map",
+                  "namespace": "repo_manager", "arguments": "  {}  ", "status": "completed"]),
+         .object(["type": "reasoning", "id": .string("rs_second_\(turn)"), "encrypted_content": "opaque-second", "summary": .array([])]),
+         .object(["type": "function_call", "id": .string("fc_a_second_\(turn)"), "call_id": .string("call_files_\(turn)"), "name": "list_files",
+                  "namespace": "repo_manager", "arguments": "{}", "status": "completed"])]
+    }
+    func count() -> Int { requests }
+    func handle(_ request: URLRequest) throws -> HTTPResult {
+        let body = try JSON.parse(request.httpBody!), turn = requests / 2, followup = requests % 2 == 1
+        requests += 1
+        let native = Self.items(turn: turn)
+        var frames: [JSON] = []
+        if followup {
+            let input = body["input"].array ?? []
+            let replay = input.filter { item in native.contains { $0["id"] == item["id"] && item["id"] != .null } }
+            let allOutputs = input.filter { $0["type"].string == "function_call_output" }
+            let currentIDs = Set(native.compactMap { $0["call_id"].string })
+            let outputs = allOutputs.filter { currentIDs.contains($0["call_id"].string ?? "") }
+            guard replay == native, outputs.map({ $0["call_id"].string }) == ["call_map_\(turn)", "call_files_\(turn)"],
+                  input.filter({ $0["type"].string == "function_call" }).map({ $0["call_id"].string }) == allOutputs.map({ $0["call_id"].string }),
+                  !requiresCompaction || outputs.contains(where: { $0["output"].string?.contains("coverage is incomplete") == true }) else {
+                return HTTPResult(status: 400, data: JSON.object(["error": .object(["code": "invalid_request_error", "param": "input", "message": "Untrusted synthetic diagnostic"]) ]).encoded)
+            }
+            let final: JSON = .object(["type": "message", "id": .string("msg_final_\(turn)"), "role": "assistant", "phase": "final", "status": "completed",
+                                      "content": .array([.object(["type": "output_text", "text": "Repository audit completed.", "annotations": .array([])])])])
+            frames = [.object(["type": "response.output_text.delta", "delta": "Repository audit completed."]),
+                      .object(["type": "response.output_item.done", "output_index": 0, "item": final]),
+                      .object(["type": "response.completed", "response": .object(["output": .array([final])])])]
+        } else {
+            for (index, item) in native.enumerated() {
+                frames.append(.object(["type": "response.output_item.done", "output_index": .number(Double(index)), "item": item]))
+            }
+            frames.append(.object(["type": "response.completed", "response": .object(["output": .array(native)])]))
+        }
+        let encoder = JSONEncoder(); var data = Data()
+        for frame in frames {
+            data.append(Data("data: ".utf8)); data.append(try encoder.encode(frame)); data.append(Data("\n\n".utf8))
+        }
+        return HTTPResult(status: 200, data: data)
     }
 }
 

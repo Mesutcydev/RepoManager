@@ -1,6 +1,6 @@
 # Free open-source release preparation
 
-14 October 2026. Complete MIT source is public. An optional **$9.99 one-time Pro** unlock for API-provider support is prepared, with rollout disabled. ChatGPT connection and Apple Intelligence remain included. The OpenAI form confirmed receipt of the access request; its decision and completed App Store setup/testing are pending. The non-consumable draft and $9.99 US price are saved. See [MONETIZATION.md](MONETIZATION.md).
+24 October 2026. The MIT source repository is public. This candidate adds the refined paywall and optional **$9.99 one-time Pro** unlock for API-key providers and custom HTTPS endpoints. ChatGPT sign-in and eligible plan usage always remain free in Repo Manager, alongside Apple Intelligence on supported devices and the GitHub workspace. The App Store product is configured; physical-device acceptance and public review remain pending. See [MONETIZATION.md](MONETIZATION.md).
 
 ## Prepared locally
 
@@ -16,14 +16,12 @@ Complete source is published at [Mesutcydev/RepoManager](https://github.com/Mesu
 
 The source ZIP's hashes and license/asset notices were checked, and the extracted source built for iOS Simulator with signing disabled. Anonymous download verifies the published source against that clean snapshot. Forks should configure their own signing identities and GitHub App.
 
-`REPO_MANAGER_OPEN_SOURCE_URL` now points to the actual public repository. Public Release ChatGPT enablement remains a separate decision: a payment-free local open-source release can use its documented route, while the proposed monetized version needs the applicable OpenAI access confirmation before offering the integration. Regenerate and run the release prebuild check when enabling it. This URL check is a declaration guard; verify anonymous access separately.
+`REPO_MANAGER_OPEN_SOURCE_URL` points to the public repository. The current build 24 source package is prepared locally and must be synchronized to that repository before public release; the older published snapshot does not establish publication of these changes. Both ChatGPT and optional Pro are enabled in Debug, TestFlight and Release. Debug fixtures are excluded from production binaries.
 
-The user separately requested an enabled TestFlight beta for personal on-device testing on 14 October. The dedicated `TestFlight` build configuration enables ChatGPT with Release optimization while ordinary public `Release` stays disabled. This beta does not establish public-source publication or approved partner access. Live account eligibility remains a beta check.
-
-Complete the live checks in [the integration guide](CHATGPT_SIGN_IN.md), then review store privacy metadata for verified account identity and optional plan usage. The app download and existing payment-free beta remain Free/$0. The prepared optional Pro product must be configured, reviewed and tested before activation; source publication does not create an in-app purchase or change App Store pricing. Existing TestFlight/App Store publication gates still apply.
+Complete live checks in [the integration guide](CHATGPT_SIGN_IN.md) and physical-device Sandbox checks before public submission. App download remains Free/$0; optional Pro is a non-consumable purchase. The build validator checks configuration and warns about unresolved commercial policy classification; it does not establish publication, account eligibility or approval.
 
 ## OpenAI eligibility
 
 OpenAI documents the local open-source flow without a developer client secret/API key. Users register connections during authorization. An MIT license in a private repository does not establish public open-source availability. [Quickstart](https://developers.openai.com/siwc/quickstart), [cookbook availability](https://developers.openai.com/cookbook/articles/sign-in-with-chatgpt).
 
-If the product becomes paid, closed-source or remotely hosted, request access before offering that integration under the new model. The documentation does not explicitly exempt free ChatGPT inside an app with paid API-provider features. The official form confirmed receipt of the request for this exact arrangement on 14 October 2026. Receipt is not approval. Source publication, live account access and commercial approval are separate evidence; none substitutes for another.
+If the product becomes paid, closed-source or remotely hosted, request access before offering that integration under the new model. The documentation does not explicitly classify free ChatGPT inside an app with paid API-provider features; review this uncertainty before public submission. The official form confirmed receipt of the request for this exact arrangement on 14 October 2026. Receipt is not approval. Source publication, live account access and commercial approval are separate evidence; none substitutes for another.

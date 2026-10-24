@@ -1,6 +1,6 @@
 # Privacy
 
-14 October 2026 · Repo Manager 1.0
+24 October 2026 · Repo Manager 1.0
 
 Repo Manager has no developer-operated account service, analytics collector, advertising SDK or crash-upload backend. It processes repository and conversation data locally and sends only explicitly requested content to the selected service. A configured upstream provider and GitHub apply their own retention and privacy terms.
 
@@ -24,7 +24,7 @@ Repo Manager has no developer-operated account service, analytics collector, adv
 | Exports/backups | Encrypted `.rmbundle`, Argon2id passphrase protection, excluding credentials and live approvals. Reconnection/fresh review required after import. |
 | Copy | User-triggered response text, credential-masked, local-only clipboard, 60-second expiry. |
 | External agents | Explicit HTTPS client credentials/grants; no default existing chat history or unrestricted repository access. Client-owned compatibility tool calls are returned to that client. |
-| Optional Pro purchase | Prepared but disabled. When enabled, Apple StoreKit handles payment and returns locally verified purchase entitlements. Repo Manager has no developer payment backend and does not receive payment-card details. No purchase token or receipt is included in portable vault exports. |
+| Optional Pro purchase | The optional one-time Pro unlock covers API-key providers and custom HTTPS endpoints; ChatGPT does not require it. Apple StoreKit handles payment and returns locally verified purchase entitlements. Repo Manager has no developer payment backend and does not receive payment-card details. No purchase token or receipt is included in portable vault exports. |
 
 Detected credentials are masked, but detection is a bounded aid rather than proof a document contains no secrets. Users decide which repository/documents to disclose. The app never asks a model to store or manage secret values; Actions/Dependabot secrets use native secure input and GitHub sealed-box encryption.
 
@@ -42,4 +42,4 @@ Provider retention is destination/model specific and can change. OpenCode contri
 
 Permission prompts explain microphone, speech, Face ID and local networking. No camera permission is requested. Privacy manifests list applicable required-reason APIs only; no tracking domains are declared. App Store nutrition labels must describe **the actual released behavior**, including explicitly selected third-party AI/cloud processing. Do not assume that the absence of a developer backend automatically means no data collection by connected services.
 
-The release privacy declaration and device-lock/audio checks require review before TestFlight/App Store delivery. See the dated QA/security evidence for remaining verification. No personal information or credentials are requested in chat for setup.
+The reviewed nine-category App Store privacy declaration was published on 24 October 2026. Physical-device purchase, live-service and device-lock/audio acceptance remain separate release checks. No personal information or credentials are requested in chat for setup.

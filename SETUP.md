@@ -50,13 +50,15 @@ The app ships no app private key, client secret, installation token generator or
 
 For local Debug builds, choose **Add provider → ChatGPT**, review and enable the OpenAI destination disclosure, and select **Continue with ChatGPT**. An eligible Plus or Pro account can authorize ChatGPT plan usage without an API key. Each saved connection keeps its own account/workspace registration. Sign-out retains that registration and removes its tokens; removing the provider forgets it. See [ChatGPT sign-in](Docs/CHATGPT_SIGN_IN.md) for the public-release configuration and live verification steps.
 
-The user-authorized on-device beta uses the `RepoManagerTestFlight` scheme and `TestFlight` configuration, with ChatGPT enabled and Release optimization. The ordinary public `Release` remains gated until source publication. TestFlight upload, public source publication and App Store release are separate actions.
+The user-authorized on-device beta uses the `RepoManagerTestFlight` scheme and `TestFlight` configuration, with ChatGPT enabled and Release optimization. Build 24 enables ChatGPT and optional Pro in Debug, TestFlight and Release; ChatGPT authentication is always exempt from Pro. Complete public source is published at https://github.com/Mesutcydev/RepoManager, with the archived snapshot tagged `v1.0-build.24`. This does not establish external service eligibility or commercial-access approval; see [MONETIZATION.md](Docs/MONETIZATION.md). TestFlight upload, source publication and App Store release are separate actions.
 
 Create a profile, review the HTTPS destination disclosure, enter an API key in the secure field, and explicitly refresh the catalog or enter a model ID. Multiple profiles for the same provider are independent. Changing an endpoint removes its saved credential and model-specific consent. No plaintext `.env` or file credential configuration is supported.
 
 OpenCode Go and Zen select the documented endpoint/protocol for each model; model settings can supply verified limits, pricing and reasoning capabilities. Contributor/free/trial models have an additional native model privacy disclosure. Catalog availability and prices can change; refresh explicitly. Unknown prices and usage remain unknown.
 
 Web tools start off. Choose direct URLs or a search provider (experimental DuckDuckGo, Brave, Tavily, Exa, SearXNG or custom HTTPS), review its destination, and enter its credential in the secure native field when needed. Private/LAN destinations, credential-bearing URLs and unsafe redirects are rejected.
+
+For a personal build without an App Store purchase product, set `REPO_MANAGER_PRO_API_PROVIDERS_ENABLED` to `NO` in the relevant `project.yml` build configurations and regenerate. This disables the app's optional Pro gate; it does not grant any upstream API credits or subscription. To distribute a fork with purchases enabled, configure your own product identifier and App Store product.
 
 ## External clients
 

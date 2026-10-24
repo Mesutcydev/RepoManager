@@ -4,12 +4,20 @@ A free, MIT-licensed native GitHub workspace for iPhone, iPad and Apple silicon 
 
 Complete MIT source is public at [Mesutcydev/RepoManager](https://github.com/Mesutcydev/RepoManager). This source includes official **Continue with ChatGPT**, enabled in Debug, TestFlight and Release. Eligible Plus and Pro users can authorize their plan for eligible AI requests without an API key. ChatGPT sign-in and eligible plan usage remain free in Repo Manager. The external policy classification of optional paid API-provider features is recorded in [MONETIZATION.md](Docs/MONETIZATION.md); no commercial-access approval is claimed. [OpenAI quickstart](https://developers.openai.com/siwc/quickstart).
 
+## Open-source and App Store editions
+
+The complete app, Share extension, core/UI packages, source assets, build configuration and tests are public under the [MIT license](LICENSE), with third-party notices preserved. The exact archived source for **1.0 (24)** is available at [v1.0-build.24](https://github.com/Mesutcydev/RepoManager/tree/v1.0-build.24). The default branch includes that app code and subsequent documentation updates.
+
+The MIT source can be built and modified under its license. Optional Pro is a purchase in the official App Store binary, not a separate source-code license. ChatGPT sign-in and eligible plan usage remain free in Repo Manager. Forks use their own signing identifiers, GitHub App and service accounts. API usage and ChatGPT eligibility remain governed by the selected service.
+
 ## Build
 
 Requires macOS, Xcode 27.1, Swift 6 and XcodeGen 2.44 or later. Minimum iOS/iPadOS and Mac Catalyst targets are 26.
 
 ```sh
+git clone https://github.com/Mesutcydev/RepoManager.git
 cd RepoManager
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 xcodegen generate
 open RepoManager.xcodeproj
 ```

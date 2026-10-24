@@ -1,8 +1,8 @@
-# Free open-source release preparation
+# Open-source release status
 
 24 October 2026. The MIT source repository is public. This candidate adds the refined paywall and optional **$9.99 one-time Pro** unlock for API-key providers and custom HTTPS endpoints. ChatGPT sign-in and eligible plan usage always remain free in Repo Manager, alongside Apple Intelligence on supported devices and the GitHub workspace. The App Store product is configured; physical-device acceptance and public review remain pending. See [MONETIZATION.md](MONETIZATION.md).
 
-## Prepared locally
+## Published contents
 
 - Preserve the existing MIT license, upstream copyright notices, Swift-Sodium/libsodium licenses and bundled third-party notices.
 - Include the complete native app, Share extension, core/UI packages, source assets, package pins, build configuration, source validators and tests.
@@ -14,9 +14,9 @@
 
 Complete source is published at [Mesutcydev/RepoManager](https://github.com/Mesutcydev/RepoManager), with a fresh history containing only the reviewed public snapshot. The original development workspace's private QA files, account evidence and existing Git state were preserved and are not part of that history. Source publication does not change App Store pricing or submit an App Store release.
 
-The source ZIP's hashes and license/asset notices were checked, and the extracted source built for iOS Simulator with signing disabled. Anonymous download verifies the published source against that clean snapshot. Forks should configure their own signing identities and GitHub App.
+The build-24 source manifest, license/asset notices and signed archive/IPA were checked with no source drift. Anonymous download of the tagged source is verified against all 183 archived source files. Forks should configure their own signing identities and GitHub App.
 
-`REPO_MANAGER_OPEN_SOURCE_URL` points to the public repository. The current build 24 source package is prepared locally and must be synchronized to that repository before public release; the older published snapshot does not establish publication of these changes. Both ChatGPT and optional Pro are enabled in Debug, TestFlight and Release. Debug fixtures are excluded from production binaries.
+`REPO_MANAGER_OPEN_SOURCE_URL` points to the public repository. The current app code is published on the default branch. The exact archived build-24 source is tagged [v1.0-build.24](https://github.com/Mesutcydev/RepoManager/tree/v1.0-build.24), at commit `890d52f2079d16cf61371a6a89a3fcd0a1ccf1cf`. Later default-branch documentation clarifies setup and licensing without changing the build-24 app code. Both ChatGPT and optional Pro are enabled in Debug, TestFlight and Release. Debug fixtures are excluded from production binaries.
 
 Complete live checks in [the integration guide](CHATGPT_SIGN_IN.md) and physical-device Sandbox checks before public submission. App download remains Free/$0; optional Pro is a non-consumable purchase. The build validator checks configuration and warns about unresolved commercial policy classification; it does not establish publication, account eligibility or approval.
 

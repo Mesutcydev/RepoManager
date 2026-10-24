@@ -272,7 +272,7 @@ public struct RMInlineNotice: View {
         HStack(alignment: .top, spacing: RMLayout.rowGap) {
             RMIconTile(symbol, tint: isError ? RMPalette.red : nil)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(RMType.rowTitle).foregroundStyle(RMPalette.text)
+                Text(title, bundle:.main).font(RMType.rowTitle).foregroundStyle(RMPalette.text)
                 Text(detail).font(RMType.detail).foregroundStyle(RMPalette.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -297,15 +297,15 @@ public struct RMForm<Content: View>: View {
 public struct RMEmptyState: View {
     let title: LocalizedStringKey
     let detail: LocalizedStringKey
-    let symbol: String
-    public init(_ title: LocalizedStringKey, detail: LocalizedStringKey, symbol: String) {
+    let symbol: String?
+    public init(_ title: LocalizedStringKey, detail: LocalizedStringKey, symbol: String? = nil) {
         self.title = title; self.detail = detail; self.symbol = symbol
     }
     public var body: some View {
         VStack(alignment: .leading, spacing: RMLayout.cardInset) {
-            RMIconTile(symbol, size: RMLayout.heroTile)
+            if let symbol { RMIconTile(symbol, size: RMLayout.heroTile) }
             VStack(alignment: .leading, spacing: RMLayout.unit) {
-                Text(title).font(RMType.title).foregroundStyle(RMPalette.text)
+                Text(title, bundle:.main).font(RMType.title).foregroundStyle(RMPalette.text)
                 Text(detail).font(RMType.detail).foregroundStyle(RMPalette.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

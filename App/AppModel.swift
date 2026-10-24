@@ -51,6 +51,8 @@ import UIKit
     var error: String?; var loading = true; var locked = false
     var pending: [MutationPlan] = []; var draft: WorkspaceDraft?; var checkpoints: [Checkpoint] = []; var conflicts: [MergeConflict] = []
     var running: Set<UUID> = []; var activity: [MutationReceipt] = []
+    var stopping: Set<UUID> = []
+    var recaps: [UUID:SessionRecap] = [:]
     var voiceConversation = false; var voiceTranscript = ""; var voicePhase: VoicePhase = .idle
     var serverRunning = false; var certificate: Data?; var fingerprint = ""; var clients: [APIClientGrant] = []
     var oneTimeCredential: String?
@@ -60,6 +62,7 @@ import UIKit
     var chatGPTSessions: [UUID:ChatGPTSession] = [:]
     var chatGPTPlanWelcomePresented = false
     var chatGPTUsageLimitReached = false
+    var syncError: String?
     var githubPairingResumePresented = false
     var chatGPTSignInResumeProfile: ProviderProfile?
     /// The chat's in-transcript search field, toggled from the top-bar actions menu.
@@ -74,11 +77,25 @@ import UIKit
     @ObservationIgnored private var syncTask: Task<Void,Never>?
     @ObservationIgnored private var serverStatusTask: Task<Void,Never>?
     @ObservationIgnored private var macroSteps: [UUID:[String]] = [:]
+    @ObservationIgnored private var reasoningElapsedBeforePhase: [UUID:Int] = [:]
     @ObservationIgnored private var cancellationTasks: [UUID:(UUID,Task<Void,Never>)] = [:]
     @ObservationIgnored private var generation: UInt64 = 0
     var lifecycleID:UInt64 { generation }
     @ObservationIgnored private var restoration: (UUID,Task<Void,Never>)?
-    init() { pro.start(); do { runtime = try AppRuntime(providerAccess:pro.access) } catch { self.error = RMError.unavailable.localizedDescription; locked = true } }
+    @ObservationIgnored private var didSeedDevelopmentFixtures = false
+    init() {
+        pro.start()
+        SessionNotificationRouter.shared.register()
+        SessionNotificationRouter.shared.openSession = { [weak self] id in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if self.locked || self.loading { await self.load() }
+                guard !self.locked, self.data.conversations.contains(where: { $0.id == id }) else { return }
+                self.selectChat(id)
+            }
+        }
+        do { runtime = try AppRuntime(providerAccess:pro.access) } catch { self.error = RMError.unavailable.localizedDescription; locked = true }
+    }
     var conversation: Conversation? { data.conversations.first { $0.id == selectedConversationID } }
     var appearance: RMAppearancePreference { RMAppearancePreference(rawValue:data.preferences.appearance) ?? .system }
     var voice: AppleVoice? { runtime?.voice }
@@ -113,6 +130,17 @@ import UIKit
                 try Task.checkCancellation(); guard generation == lease,self.runtime === runtime else { return }
                 try await runtime.vault.delete(id:"pending-history-import")
             }
+            var repaired = false
+            for i in loaded.conversations.indices {
+                for m in loaded.conversations[i].messages.indices {
+                    let message = loaded.conversations[i].messages[m]
+                    if message.role == .assistant && (message.tools.contains(where: { $0.status == .running }) || m == loaded.conversations[i].messages.indices.last && message.finishReason == nil) {
+                        freezeReasoning(&loaded.conversations[i].messages[m]); ConversationContext.interrupt(&loaded.conversations[i].messages[m]); repaired = true
+                    }
+                }
+            }
+            if repaired { try await runtime.vault.save(loaded,id:"app-data") }
+            try Task.checkCancellation(); guard generation == lease,self.runtime === runtime else { return }
             data = loaded
             var sessions: [UUID:ChatGPTSession] = [:]
             for profile in loaded.providers where profile.usesChatGPT { sessions[profile.id] = try? await runtime.chatGPT.session(profile.id) }
@@ -122,13 +150,42 @@ import UIKit
             guard generation == lease,self.runtime === runtime else { return }
             clients = await runtime.authorization.clients(); activity = await runtime.approvals.journal()
             locked = false; error = nil
-            if DevelopmentFixtures.enabled {
+            if DevelopmentFixtures.enabled && (!DevelopmentFixtures.backgroundResume || !didSeedDevelopmentFixtures) {
                 var c = Conversation(); c.title = "Review repository changes"
                 var p = ProviderProfile(preset:.openAI,title:"Fixture · no network"); p.models = [ModelMetadata(id:"fixture")]; p.consentEndpoint = p.endpoint
+                if DevelopmentFixtures.storeScreenshots {
+                    p.title = "Example API provider"
+                    var example = ModelMetadata(id:"example-model"); example.displayName = "Example model"
+                    p.models = [example]
+                }
                 let pendingChatGPT = DevelopmentFixtures.chatGPTPairing
                     ? loaded.providers.filter { $0.usesChatGPT && $0.id == chatGPTSignIn.profileID } : []
-                data.providers = [p] + pendingChatGPT; c.providerID = p.id; c.modelID = "fixture"
+                data.providers = [p] + pendingChatGPT; c.providerID = p.id; c.modelID = p.models.first?.id ?? "fixture"
                 c.messages = [ChatMessage(role:.user,text:"Help me review the repository changes."),ChatMessage(role:.assistant,text:"I can inspect files, compare changes, and prepare a review.\n\nEvery GitHub publication requires your confirmation.")]
+                if DevelopmentFixtures.storeScreenshots {
+                    c.messages = [ChatMessage(role:.user,text:"Help me plan a clearer introduction to this repository."),
+                                  ChatMessage(role:.assistant,text:"## A focused review\n\nStart with **README.md** and keep the change easy to review.\n\n- Explain what the project does.\n- Make the setup steps easy to follow.\n- Keep the contribution guide close to the code.\n\n### Your next step\n\nBrowse the file, shape a local draft, then review the diff before publishing to GitHub.")]
+                }
+                if DevelopmentFixtures.sessionDesign {
+                    c.title = "Repo Manager interface review"
+                    var metadata = ModelMetadata(id:"fixture",contextTokens:8192,outputTokens:1024)
+                    metadata.displayName = "Example model"; metadata.inputCostPerMillion = 1; metadata.outputCostPerMillion = 2
+                    p.models = [metadata]; data.providers = [p]; c.messages = []
+                    for index in 1...4 {
+                        c.messages.append(ChatMessage(role:.user,text:index == 4 ? "Make tool activity and session controls easier to inspect." : "Review the repository interface, step \(index)."))
+                        var reply = ChatMessage(role:.assistant,text:index == 4 ? "The session controls stay close to the conversation. Expand the tool summary to inspect each operation and its full output." : "Reviewed the interface and retained the existing repository and approval behavior.")
+                        reply.finishReason = "stop"; reply.usage = Usage(input:1200,output:240); reply.pricing = MessagePricing(metadata:metadata)
+                        if index == 4 {
+                            reply.tools = [ToolResult(id:"session_read",name:"read_file",detail:"Inspected Sources/ChatView.swift. Fixture output; no network request.",status:.success),
+                                ToolResult(id:"session_search",name:"search_files",detail:"Found the composer and session controls.",status:.success),
+                                ToolResult(id:"session_build",name:"build_project",detail:"Example failure: a build configuration was unavailable. This is synthetic QA output.",status:.failure)]
+                            reply.calls = [ToolCall(id:"session_read",name:"read_file",arguments:.object(["path":.string("Sources/ChatView.swift")]))]
+                        }
+                        c.messages.append(reply)
+                    }
+                    var state = SessionDeviceState(); state.visited = true; state.seenMessageID = c.messages[5].id; state.seenSignature = SessionContext.signature(c.messages[5])
+                    data.sessionStates = [c.id:state]
+                }
                 data.conversations = [c]; selectedConversationID = c.id
                 if let raw = DevelopmentFixtures.workspace, let page = RMWorkspace(rawValue:raw) { selection = page }
                 if DevelopmentFixtures.repositoryWorkspace {
@@ -136,11 +193,14 @@ import UIKit
                     try Task.checkCancellation(); guard generation == lease else { return }
                     data.accounts = [account]
                     let scope = RepositoryScope(accountID:account.id,connectionID:account.connectionID,repositoryID:42,owner:account.login,name:"repo-manager",branch:"main")
-                    data.conversations[0].repository = scope; data.conversations[0].mode = .act
+                    data.conversations[0].repository = scope; data.conversations[0].mode = DevelopmentFixtures.contextBudget || DevelopmentFixtures.extendedAudit || DevelopmentFixtures.replyStability || DevelopmentFixtures.backgroundResume ? .plan : .act
+                    if DevelopmentFixtures.replyStability || DevelopmentFixtures.backgroundResume { data.conversations[0].messages = [] }
                     await runtime.approvals.bind(c.id,scope:scope)
                 }
                 data.preferences.onboardingCompleted = !DevelopmentFixtures.onboarding
-                data.preferences.appearance = DevelopmentFixtures.lightAppearance ? "light" : "dark"
+                data.preferences.appearance = DevelopmentFixtures.oledAppearance ? "oled" : DevelopmentFixtures.lightAppearance ? "light" : "dark"
+                if DevelopmentFixtures.syncFailure { data.preferences.syncHistory = true }
+                didSeedDevelopmentFixtures = true
             }
             startVoiceEvents()
             serverStatusTask?.cancel()
@@ -150,7 +210,7 @@ import UIKit
     func newChat() {
         // Reuse an untouched chat instead of stacking empty ones in history.
         if let current = conversation, current.messages.isEmpty, current.draft.isEmpty, current.attachments.isEmpty, !current.archived { selection = .chat; return }
-        if let selectedConversationID { stop(selectedConversationID) }
+        if let selectedConversationID { rememberSession(selectedConversationID); stop(selectedConversationID) }
         var c = Conversation()
         if DevelopmentFixtures.enabled, let p = data.providers.first { c.providerID = p.id; c.modelID = p.models.first?.id ?? "" }
         // Start with the most recently used model so a new chat can send immediately. Repository scope is never inherited.
@@ -160,6 +220,7 @@ import UIKit
         data.conversations.insert(c,at:0); selectedConversationID = c.id; selection = .chat; save()
     }
     func selectChat(_ id: UUID) {
+        if let selectedConversationID, selectedConversationID != id { rememberSession(selectedConversationID) }
         if let selectedConversationID, selectedConversationID != id { stop(selectedConversationID) }
         selectedConversationID = id; selection = .chat
         let scope = conversation?.repository
@@ -181,8 +242,14 @@ import UIKit
         data.conversations[i].fileEditorDrafts = drafts; save()
     }
     func selectModel(profile: ProviderProfile, model: String) {
-        guard let id = selectedConversationID else { return }; stop(id)
-        editConversation { $0.providerID = profile.id; $0.modelID = model }
+        guard let current = conversation, current.providerID != profile.id || current.modelID != model else { return }
+        let label = profile.models.first(where: { $0.id == model })?.displayName ?? model
+        editConversation {
+            $0.providerID = profile.id; $0.modelID = model
+            var changes = $0.modelChanges ?? []
+            changes.append(SessionModelChange(label: label, beforeMessageID: $0.messages.last?.id))
+            $0.modelChanges = changes
+        }
     }
     func consentToModel(profile:ProviderProfile,model:String) async throws {
         guard let runtime,let i = data.providers.firstIndex(where:{ $0.id == profile.id && $0.endpoint == profile.endpoint }),!locked else { throw RMError.consentRequired }
@@ -210,7 +277,7 @@ import UIKit
             if let scope, old.scope.repositoryID == scope.repositoryID, old.scope.branch == scope.branch {
                 do { try await runtime?.workspace.reconnectDraft(id,scope:scope) }
                 catch { self.error = (error as? RMError ?? .authentication).localizedDescription; return }
-            } else if !old.changes.isEmpty { error = "This conversation owns a staged draft. Create another chat for a different repository, or explicitly discard the draft first."; return }
+            } else if !old.changes.isEmpty { error = String(localized:"This conversation owns a staged draft. Create another chat for a different repository, or explicitly discard the draft first."); return }
         }
         if let old = await runtime?.workspace.currentDraft(id), old.scope != scope { try? await runtime?.workspace.discard(id) }
         editConversation { $0.repository = scope }; await runtime?.approvals.bind(id,scope:scope); await refreshWorkspace()
@@ -223,14 +290,15 @@ import UIKit
         try await runtime.connections.disconnect(accountID)
         data.accounts.removeAll { $0.id == accountID }; save(); await refreshWorkspace()
     }
-    func send(_ override: String? = nil) {
-        guard let runtime, let c = conversation, !running.contains(c.id) else { return }
+    func send(_ override: String? = nil, continuationOf requestID: UUID? = nil) {
+        guard let runtime, let c = conversation, !running.contains(c.id), !stopping.contains(c.id) else { return }
         let text = (override ?? c.draft).trimmingCharacters(in:.whitespacesAndNewlines)
         if override == nil && text.hasPrefix("/") { if command(text) { return } }
         guard !text.isEmpty, let profile = data.providers.first(where:{ $0.id == c.providerID }), !c.modelID.isEmpty else { error = RMError.noProvider.localizedDescription; return }
         guard profile.consentEndpoint == profile.endpoint else { error = RMError.consentRequired.localizedDescription; return }
-        do { try ProviderDisclosure.validate(profile:profile,model:c.modelID) } catch { self.error = "Review the model's privacy disclosure in the model picker before sending content."; return }
+        do { try ProviderDisclosure.validate(profile:profile,model:c.modelID) } catch { self.error = String(localized:"Review the model's privacy disclosure in the model picker before sending content."); return }
         var user = ChatMessage(role:.user,text:RepositorySecretScanner.scan(text).redacted)
+        if let requestID, c.messages.contains(where: { $0.role == .user && $0.id == requestID }) { user.continuationOf = requestID }
         if !c.attachments.isEmpty { user.text += "\n\n"+c.attachments.filter { !$0.text.isEmpty }.map { "Untrusted attached document: \($0.name)\n"+RepositorySecretScanner.scan($0.text).redacted }.joined(separator:"\n\n") }
         var assistant = ChatMessage(role:.assistant)
         let metadata = profile.models.first { $0.id == c.modelID }
@@ -245,7 +313,10 @@ import UIKit
         if let persona = data.personas.first(where:{ $0.id == c.personaID }) { system += "\n"+persona.instruction }
         system += "\nProject instructions: \(c.instructions)\nUser-controlled context memory: \(c.memory)"
         if let scope = c.repository { system += "\nSelected scope: \(scope.fullName) on \(scope.branch)." }
-        var input = RunRequest(conversationID:c.id,profile:profile,model:c.modelID,messages:[ChatMessage(role:.system,text:system)]+ConversationContext.messages(Array(conversation?.messages.dropLast() ?? [])),thinking:c.thinking)
+        var contextConversation = conversation ?? c
+        contextConversation.messages = Array(contextConversation.messages.dropLast())
+        var input = RunRequest(conversationID:c.id,profile:profile,model:c.modelID,messages:[ChatMessage(role:.system,text:system)]+SessionContext.protocolMessages(contextConversation),thinking:c.thinking)
+        if DevelopmentFixtures.contextBudget || DevelopmentFixtures.backgroundResume { input.inputBudget = 8192 }
         input.reasoningPreference = c.reasoningPreference
         input.latencySensitive = voiceConversation
         let context = ScopedToolContext(conversationID:c.id,repository:c.repository,mode:c.mode,attachments:c.attachments)
@@ -266,7 +337,7 @@ import UIKit
                     case .text(let t):
                         freezeReasoning(&data.conversations[i].messages[m]); data.conversations[i].messages[m].text += t
                     case .reasoning(let t):
-                        if data.conversations[i].messages[m].reasoningStartedAt == nil { data.conversations[i].messages[m].reasoningStartedAt = Date() }
+                        beginReasoning(&data.conversations[i].messages[m])
                         data.conversations[i].messages[m].reasoning += t
                     case .result(let result):
                         freezeReasoning(&data.conversations[i].messages[m]); data.conversations[i].messages[m].tools.removeAll { $0.id == result.id }; data.conversations[i].messages[m].tools.append(result)
@@ -276,8 +347,7 @@ import UIKit
                     case .reasoningConfiguration(let decision): data.conversations[i].messages[m].reasoningDecision = decision
                     case .providerState(let payload): data.conversations[i].messages[m].providerContinuation = ProviderContinuation(profileID:profile.id,modelID:c.modelID,endpoint:profile.endpoint,payload:payload)
                     case .protocolRound(let round):
-                        if data.conversations[i].messages[m].protocolRounds == nil { data.conversations[i].messages[m].protocolRounds = [] }
-                        data.conversations[i].messages[m].protocolRounds?.append(contentsOf:round)
+                        ConversationContext.record(round,in:&data.conversations[i].messages[m])
                     case .finish(let reason): freezeReasoning(&data.conversations[i].messages[m]); data.conversations[i].messages[m].finishReason = reason
                     case .compaction(let notice): data.conversations[i].contextNotice = notice
                     case .tool(let call): data.conversations[i].messages[m].calls.append(call)
@@ -287,33 +357,58 @@ import UIKit
                 }
                 succeeded = true
             } catch {
-                if runIDs[c.id] == lease { showProviderError(error) }
+                if runIDs[c.id] == lease {
+                    if (error as? RMError) == .emptyResponse,
+                       let i = data.conversations.firstIndex(where:{ $0.id == c.id }),let m = data.conversations[i].messages.firstIndex(where:{ $0.id == assistant.id }) {
+                        data.conversations[i].messages[m].responseIssue = RMError.emptyResponse.localizedDescription
+                        data.conversations[i].messages[m].finishReason = "empty_response"
+                    } else { showProviderError(error) }
+                }
             }
             guard runIDs[c.id] == lease else { return }
+            if let i = data.conversations.firstIndex(where:{ $0.id == c.id }),let m = data.conversations[i].messages.firstIndex(where:{ $0.id == assistant.id }) {
+                freezeReasoning(&data.conversations[i].messages[m])
+                if !succeeded, override == nil, data.conversations[i].draft.isEmpty {
+                    data.conversations[i].draft = text
+                }
+            }
             running.remove(c.id); runTasks[c.id] = nil; runIDs[c.id] = nil; save(); await refreshWorkspace()
             if succeeded, selectedConversationID == c.id, data.conversations.first(where:{ $0.id == c.id })?.messages.last?.finishReason != "approval", var steps = macroSteps[c.id], !steps.isEmpty {
                 let next = steps.removeFirst(); macroSteps[c.id] = steps; send(next); return
             }
             macroSteps[c.id] = nil
+            if succeeded, data.conversations.first(where: { $0.id == c.id })?.messages.last?.finishReason != "approval" {
+                await notifyCompletion(c.id, responseID: assistant.id)
+            }
             if voiceConversation, activeVoiceConversationID == c.id, let message = data.conversations.first(where:{ $0.id == c.id })?.messages.last,
                message.finishReason != "approval", !message.text.isEmpty { runtime.voice.speak(message.text,voiceID:data.preferences.voiceID,rate:data.preferences.speechRate) }
             scheduleSync()
         }
     }
+    private func beginReasoning(_ message: inout ChatMessage) {
+        guard message.reasoningStartedAt == nil || message.reasoningSeconds != nil else { return }
+        reasoningElapsedBeforePhase[message.id] = message.reasoningSeconds ?? 0
+        if !message.reasoning.isEmpty { message.reasoning += "\n\n" }
+        message.reasoningStartedAt = Date(); message.reasoningSeconds = nil
+    }
     private func freezeReasoning(_ message: inout ChatMessage) {
-        if let start = message.reasoningStartedAt, message.reasoningSeconds == nil { message.reasoningSeconds = max(0,Int(Date().timeIntervalSince(start))) }
+        if let start = message.reasoningStartedAt,message.reasoningSeconds == nil {
+            message.reasoningSeconds = (reasoningElapsedBeforePhase.removeValue(forKey:message.id) ?? 0) + max(0,Int(Date().timeIntervalSince(start)))
+        }
     }
     func stop(_ id: UUID? = nil) {
         guard let id = id ?? selectedConversationID else { return }
+        let wasRunning = running.contains(id)
+        if wasRunning { stopping.insert(id) }
         macroSteps[id] = nil
         runTasks[id]?.cancel(); runTasks[id] = nil; runIDs[id] = nil; running.remove(id)
         if let i = data.conversations.firstIndex(where:{ $0.id == id }), let m = data.conversations[i].messages.indices.last,
            data.conversations[i].messages[m].role == .assistant {
-            freezeReasoning(&data.conversations[i].messages[m]); if data.conversations[i].messages[m].finishReason == nil { data.conversations[i].messages[m].finishReason = "cancelled" }
+            freezeReasoning(&data.conversations[i].messages[m]); ConversationContext.interrupt(&data.conversations[i].messages[m])
         }
         if let runtime {
             let previous = cancellationTasks[id]?.1; let token = UUID()
-            let task = Task { await previous?.value; await runtime.runs.cancel(id); await refreshWorkspace() }
+            let task = Task { await previous?.value; await runtime.runs.cancel(id); stopping.remove(id); await refreshWorkspace() }
             cancellationTasks[id] = (token,task)
         }
         save()
@@ -326,14 +421,19 @@ import UIKit
     func regenerate() {
         guard let c = conversation, !running.contains(c.id), let lastUser = c.messages.last(where:{ $0.role == .user }) else { return }
         editConversation { chat in if chat.messages.last?.role == .assistant { chat.messages.removeLast() }; if chat.messages.last?.role == .user { chat.messages.removeLast() } }
-        send(lastUser.text)
+        send(lastUser.text,continuationOf:lastUser.continuationOf)
+    }
+    func follow(_ text: String, after responseID: UUID) {
+        guard let c = conversation else { return }
+        send(text,continuationOf:ConversationContext.requestID(for:responseID,in:c.messages))
     }
     func fork(_ id: UUID) {
-        guard var c = data.conversations.first(where:{ $0.id == id }) else { return }
-        c.id = UUID(); c.title += " (fork)"; c.modified = Date(); data.conversations.insert(c,at:0); selectChat(c.id); save()
+        guard !running.contains(id), !stopping.contains(id), var c = data.conversations.first(where:{ $0.id == id }) else { return }
+        c.id = UUID(); c.forkedFrom = id; c.title += String(localized:" (fork)"); c.modified = Date(); data.conversations.insert(c,at:0); selectChat(c.id); save()
     }
     func deleteChat(_ id: UUID) async {
         stop(id); data.tombstones[id] = Date(); data.conversations.removeAll { $0.id == id }
+        data.sessionStates?[id] = nil; recaps[id] = nil
         if selectedConversationID == id { selectedConversationID = nil; selection = .chats }; try? await runtime?.workspace.discard(id); await flush()
     }
     func upsertProvider(_ profile: ProviderProfile, credential: String) async throws {
@@ -354,9 +454,9 @@ import UIKit
             guard old.usesChatGPT == profile.usesChatGPT else { throw RMError.invalidInput }
             for c in data.conversations where c.providerID == profile.id { stop(c.id); await finishCancellation(c.id) }
             try Task.checkCancellation(); guard generation == lease,!locked,self.runtime === runtime else { throw RMError.cancelled }
-            if old.endpoint != profile.endpoint { try runtime.credentials.delete("provider:\(profile.id)"); profile.privacyConsentedModels = nil }
+            if old.endpoint != profile.endpoint { try runtime.credentials.delete(ProviderCredential.account(profile.id)); profile.privacyConsentedModels = nil }
         }
-        if !credential.isEmpty { guard credential.count <= 2048, !credential.contains("\n") else { throw RMError.invalidInput }; try runtime.credentials.write(Data(credential.utf8),account:"provider:\(profile.id)") }
+        if !credential.isEmpty { guard credential.count <= 2048, !credential.contains("\n") else { throw RMError.invalidInput }; try runtime.credentials.write(ProviderCredential.encode(credential,endpoint:profile.endpoint),account:ProviderCredential.account(profile.id)) }
         data.providers.removeAll { $0.id == profile.id }; data.providers.append(profile)
         await runtime.api.configure(profiles:data.providers)
         try Task.checkCancellation(); guard generation == lease,!locked,self.runtime === runtime else { throw RMError.cancelled }
@@ -368,10 +468,10 @@ import UIKit
         guard let runtime,!locked else { throw RMError.locked }
         if data.providers.first(where:{ $0.id == id })?.usesChatGPT == true {
             let confirmed = try await runtime.chatGPT.forget(id)
-            if !confirmed { error = "The account was removed locally. Remote sign-out could not be confirmed; disconnect Repo Manager in ChatGPT settings." }
+            if !confirmed { error = String(localized:"The account was removed locally. Remote sign-out could not be confirmed; disconnect Repo Manager in ChatGPT settings.") }
             chatGPTSessions[id] = nil
         }
-        try runtime.credentials.delete("provider:\(id)"); data.providers.removeAll { $0.id == id }
+        try runtime.credentials.delete(ProviderCredential.account(id)); data.providers.removeAll { $0.id == id }
         await runtime.api.configure(profiles:data.providers); await flush()
     }
     func refreshCatalog(_ id: UUID) async throws {
@@ -399,7 +499,7 @@ import UIKit
             guard !locked,generation == lease,let index = data.providers.firstIndex(where:{ $0.id == id }) else { return }
             chatGPTSessions[id] = try await runtime.chatGPT.session(id); data.providers[index].models = []
             await runtime.api.configure(profiles:data.providers); await flush()
-            if !confirmed { error = "Signed out locally. Remote sign-out could not be confirmed; disconnect Repo Manager in ChatGPT settings." }
+            if !confirmed { error = String(localized:"Signed out locally. Remote sign-out could not be confirmed; disconnect Repo Manager in ChatGPT settings.") }
         } catch { if !locked,generation == lease { showProviderError(error) } }
     }
     func showProviderError(_ failure: Error) {
@@ -407,7 +507,7 @@ import UIKit
         error = ProviderFailure.safe(failure).localizedDescription
     }
     func executeTool(_ name: String, arguments: JSON) async -> ToolResult? {
-        guard let runtime, let c = conversation else { error = "Open a chat first."; return nil }
+        guard let runtime, let c = conversation else { error = String(localized:"Open a chat first."); return nil }
         await finishCancellation(c.id)
         guard !locked,selectedConversationID == c.id,conversation?.repository == c.repository else { return nil }
         await runtime.approvals.bind(c.id,scope:c.repository)
@@ -465,7 +565,7 @@ import UIKit
         case "/model": selection = .providers
         case "/context": editConversation { $0.memory = parameter }
         case "/diff","/review": selection = .changes
-        case "/checkpoint": Task { _ = await executeTool("checkpoint",arguments:.object(["title":.string(parameter.isEmpty ? "Checkpoint" : parameter)])) }
+        case "/checkpoint": Task { _ = await executeTool("checkpoint",arguments:.object(["title":.string(parameter.isEmpty ? String(localized:"Checkpoint") : parameter)])) }
         case "/plan": editConversation { $0.mode = .plan }
         case "/act": editConversation { $0.mode = .act }
         default:
@@ -509,21 +609,31 @@ import UIKit
         certificate = material.certificate; fingerprint = material.fingerprint; serverRunning = true
     }
     func stopServer() async { await runtime?.server.stop(); serverRunning = false; oneTimeCredential = nil }
-    func synchronize() async {
-        guard let runtime else { return }
+    func synchronize(automatically:Bool = false) async {
+        guard let runtime,data.preferences.syncHistory,!locked else { return }
+        let lease = generation
         do {
+            #if DEBUG
+            if DevelopmentFixtures.syncFailure { throw RMError.connection }
+            #endif
             guard AppleCapability.cloudKitProvisioned else { throw RMError.unavailable }
-            let lease = generation
             let merged = try await runtime.sync.synchronize(data)
             guard data.preferences.syncHistory,!locked,generation == lease,self.runtime === runtime else { return }
             data = HistoryMerge.merge(local:data,remote:merged.conversations.map(HistoryRecord.init)+merged.tombstones.map { HistoryRecord(tombstone:$0.key,date:$0.value) }); await flush()
-        } catch { self.error = (error as? RMError ?? .connection).localizedDescription }
+            syncError = nil
+        } catch {
+            guard !Task.isCancelled,data.preferences.syncHistory,!locked,generation == lease,self.runtime === runtime else { return }
+            let message = String(localized:"Encrypted iCloud sync could not finish. Your local chats are retained. Retry from Settings.")
+            syncError = message
+            if !automatically { self.error = message }
+        }
     }
     private func scheduleSync() {
         guard data.preferences.syncHistory else { return }; syncTask?.cancel()
-        syncTask = Task { do { try await Task.sleep(for:.seconds(10)); await synchronize() } catch {} }
+        syncTask = Task { do { try await Task.sleep(for:.seconds(DevelopmentFixtures.syncFailure ? 6 : 10)); await synchronize(automatically:true) } catch {} }
     }
     func inactive(background: Bool) async {
+        if selection == .chat, let id = selectedConversationID { rememberSession(id) }
         if !background,!loading,!locked { await flush() }
         if background || ![VoicePhase.idle,.approval,.paused].contains(voicePhase) { stopVoice() }
         await stopServer()
@@ -545,7 +655,7 @@ import UIKit
         generation &+= 1
         await stopServer()
         if background {
-            data = AppData(); pending = []; draft = nil; checkpoints = []; conflicts = []; activity = []; clients = []; certificate = nil; locked = true
+            data = AppData(); pending = []; draft = nil; checkpoints = []; conflicts = []; activity = []; clients = []; certificate = nil; syncError = nil; locked = true
             await runtime?.knowledge.clearMemory(); await runtime?.workspace.clearMemory()
         }
     }
@@ -567,7 +677,7 @@ import UIKit
     }
     func wipe() async throws {
         let lease = generation
-        guard try await AppleAuthenticator().authenticate(action:"Wipe Repo Manager",target:"this device") else { throw RMError.authentication }
+        guard try await AppleAuthenticator().authenticate(action:String(localized:"Wipe Repo Manager"),target:String(localized:"this device")) else { throw RMError.authentication }
         try Task.checkCancellation(); guard generation == lease else { throw RMError.cancelled }
         githubSignIn.cancel(); githubPairingResumePresented = false
         chatGPTSignIn.cancel(); chatGPTSignInResumeProfile = nil

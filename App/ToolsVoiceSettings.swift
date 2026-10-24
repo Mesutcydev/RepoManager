@@ -11,38 +11,38 @@ struct ToolsView: View {
     var body: some View { NavigationStack {
         ScrollView {
             LazyVStack(alignment:.leading,spacing:RMLayout.groupGap) {
-                RMPageHeading("Tools",detail:"Plan mode reads. Act mode stages edits on this device. Publishing always opens a review.")
+                RMPageHeading(String(localized:"Tools"),detail:String(localized:"Plan mode reads. Act mode stages edits on this device. Publishing always opens a review."))
                 ForEach(Array(Set(ToolCatalog.all.map(\.group))).sorted(),id:\.self) { group in
-                    let definitions = ToolCatalog.all.filter { $0.group == group && !$0.nativeOnly && (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) || $0.description.localizedCaseInsensitiveContains(query)) }
+                    let definitions = ToolCatalog.all.filter { $0.group == group && !$0.nativeOnly && (query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) || $0.localizedDescription.localizedCaseInsensitiveContains(query)) }
                     let expanded = !query.isEmpty || expandedGroups.contains(group)
                     if !definitions.isEmpty {
                         // One card per group; the header row folds its tools away.
                         RMCard {
                             Button { if expandedGroups.contains(group) { expandedGroups.remove(group) } else { expandedGroups.insert(group) } } label: {
-                                RMRow(group,detail:definitions.count == 1 ? "1 tool" : "\(definitions.count) tools") { RMIconTile(ToolsView.symbol(group)) } trailing: {
+                                RMRow(RMLocalization.text(group),detail:definitions.count == 1 ? String(localized:"1 tool") : String(localized:"\(definitions.count) tools")) { RMIconTile(ToolsView.symbol(group)) } trailing: {
                                     Image(systemName:"chevron.forward").font(RMType.label).foregroundStyle(RMPalette.secondary)
                                         .rotationEffect(.degrees(expanded ? 90 : 0)).accessibilityHidden(true)
                                 }
                             }.buttonStyle(RMPressButtonStyle()).disabled(!query.isEmpty)
-                                .accessibilityValue(expanded ? "Expanded" : "Collapsed").accessibilityIdentifier(group == ToolCatalog.all.first?.group ? "tools.catalog" : "tools.group.\(group)")
+                                .accessibilityValue(expanded ? String(localized:"Expanded") : String(localized:"Collapsed")).accessibilityIdentifier(group == ToolCatalog.all.first?.group ? "tools.catalog" : "tools.group.\(group)")
                             if expanded {
                                 ForEach(definitions) { d in
                                     Button { tool = d } label: {
-                                        RMRow(d.displayName,detail:d.description) { Color.clear.frame(width:RMLayout.tile) } trailing: { RMBadge(d.risk == .read ? "Read" : d.risk == .localEdit ? "Stages" : "Review") }
+                                        RMRow(d.displayName,detail:d.localizedDescription) { Color.clear.frame(width:RMLayout.tile) } trailing: { RMBadge(d.risk == .read ? String(localized:"Read") : d.risk == .localEdit ? String(localized:"Stages") : String(localized:"Review")) }
                                     }.buttonStyle(RMPressButtonStyle()).accessibilityIdentifier("tool.\(d.name)")
                                 }
                             }
                         }
                     }
                 }
-                RMCard("Prompt macros",footer:"Saved workflows use the same provider, scope, and review controls.") {
+                RMCard(String(localized:"Prompt macros"),footer:String(localized:"Saved workflows use the same provider, scope, and review controls.")) {
                     ForEach(model.data.macros) { item in
-                        Button { macro = item } label: { RMRow(item.title,detail:item.prompts.count == 1 ? "1 step" : "\(item.prompts.count) steps",symbol:"text.badge.play",accessory:.chevron) }.buttonStyle(RMPressButtonStyle())
+                        Button { macro = item } label: { RMRow(item.title,detail:item.prompts.count == 1 ? String(localized:"1 step") : String(localized:"\(item.prompts.count) steps"),symbol:"text.badge.play",accessory:.chevron) }.buttonStyle(RMPressButtonStyle())
                     }
-                    Button { macro = PromptMacro(title:"New macro",prompts:[""]) } label: { RMRow("Add macro",symbol:"plus") }.buttonStyle(RMPressButtonStyle())
+                    Button { macro = PromptMacro(title:String(localized:"New macro"),prompts:[""]) } label: { RMRow(String(localized:"Add macro"),symbol:"plus") }.buttonStyle(RMPressButtonStyle())
                 }
-                RMCard("Release assets",footer:model.conversation?.repository == nil ? "Select a repository in a chat to attach a release asset. Files stay encrypted on this device; maximum size is 50 MiB." : "Files stay encrypted on this device. Maximum size: 50 MiB per asset.") {
-                    Button { importAsset = true } label: { RMRow("Import release asset",symbol:"square.and.arrow.down",accessory:.chevron) }
+                RMCard(String(localized:"Release assets"),footer:model.conversation?.repository == nil ? String(localized:"Select a repository in a chat to attach a release asset. Files stay encrypted on this device; maximum size is 50 MiB.") : String(localized:"Files stay encrypted on this device. Maximum size: 50 MiB per asset.")) {
+                    Button { importAsset = true } label: { RMRow(String(localized:"Import release asset"),symbol:"square.and.arrow.down",accessory:.chevron) }
                         .buttonStyle(RMPressButtonStyle()).disabled(model.conversation?.repository == nil)
                     if let asset {
                         RMRow(asset.name,detail:"SHA-256 \(asset.sha256.prefix(16))…",symbol:"doc.zipper",accessory:.value(asset.byteCount.formatted(.byteCount(style:.file))))
@@ -72,7 +72,7 @@ struct ToolsView: View {
 extension ToolsView {
     /// Groups named after a workspace share its drawer symbol; the rest have their own.
     static func symbol(_ group:String) -> String {
-        if let page = RMWorkspace.allCases.first(where:{ $0.title == group }) { return page.symbol }
+        if let page = RMWorkspace.allCases.first(where:{ $0.catalogGroup == group }) { return page.symbol }
         switch group {
         case "Administration": return "gearshape"; case "Collaboration": return "person.2"
         case "General": return "doc.text.magnifyingglass"; case "Workspace": return "square.and.pencil"
@@ -98,12 +98,12 @@ struct VoiceView: View {
     var body: some View {
         NavigationStack { ScrollView {
             VStack(alignment:.leading,spacing:RMLayout.groupGap) {
-                RMPageHeading("Voice",detail:"Dictation and read-aloud use Apple speech on this device.")
-                RMCard(footer:"Speech recognition runs on the device with Apple system speech assets. Only the transcript reaches your selected provider. Audio is never saved. Unsupported languages are reported; the app never switches to another language or remote speech.") {
-                    RMRow("Session",detail:model.voiceConversation ? "Spoken conversation" : nil) { RMIconTile("waveform",tint:active ? RMPalette.accentText : nil) } trailing: {
-                        RMBadge(model.voice?.preparing == true ? "Preparing" : model.voicePhase.rawValue.capitalized,tint:active ? RMPalette.accentText : nil)
+                RMPageHeading(String(localized:"Voice"),detail:String(localized:"Dictation and read-aloud use Apple speech on this device."))
+                RMCard(footer:String(localized:"Speech recognition runs on the device with Apple system speech assets. Only the transcript reaches your selected provider. Audio is never saved. Unsupported languages are reported; the app never switches to another language or remote speech.")) {
+                    RMRow(String(localized:"Session"),detail:model.voiceConversation ? String(localized:"Spoken conversation") : nil) { RMIconTile("waveform",tint:active ? RMPalette.accentText : nil) } trailing: {
+                        RMBadge(model.voice?.preparing == true ? String(localized:"Preparing") : model.voicePhase.title,tint:active ? RMPalette.accentText : nil)
                     }
-                    RMRow("Language") { RMIconTile("globe") } trailing: {
+                    RMRow(String(localized:"Language")) { RMIconTile("globe") } trailing: {
                         TextField("Locale",text:$model.data.preferences.voiceLocale).font(RMType.body).multilineTextAlignment(.trailing)
                             .foregroundStyle(RMPalette.secondary).autocorrectionDisabled().textInputAutocapitalization(.never)
                     }
@@ -119,8 +119,8 @@ struct VoiceView: View {
                     if active { Button("Stop voice",role:.destructive) { model.stopVoice() }.rmSecondaryButton() }
                     if model.conversation?.providerID == nil { Text("Choose a model in a chat before starting a spoken conversation.").font(RMType.meta).foregroundStyle(RMPalette.secondary) }
                 }
-                RMCard("Read aloud") {
-                    RMRow("Voice") { RMIconTile("person.wave.2") } trailing: {
+                RMCard(String(localized:"Read aloud")) {
+                    RMRow(String(localized:"Voice")) { RMIconTile("person.wave.2") } trailing: {
                         Picker("Voice",selection:$model.data.preferences.voiceID) {
                             Text("System voice").tag(String?.none)
                             ForEach(AVSpeechSynthesisVoice.speechVoices(),id:\.identifier) { v in Text("\(v.name) · \(v.language)").tag(Optional(v.identifier)) }
@@ -133,7 +133,7 @@ struct VoiceView: View {
                         Image(systemName:"hare").foregroundStyle(RMPalette.secondary).accessibilityHidden(true)
                     }.padding(.horizontal,RMLayout.cardInset).frame(minHeight:RMLayout.rowHeight)
                     Button { if let response = model.conversation?.messages.last(where:{ $0.role == .assistant && !$0.text.isEmpty }) { model.voice?.speak(response.text,voiceID:model.data.preferences.voiceID,rate:model.data.preferences.speechRate) } } label: {
-                        RMRow("Read latest response",symbol:"speaker.wave.2")
+                        RMRow(String(localized:"Read latest response"),symbol:"speaker.wave.2")
                     }.buttonStyle(RMPressButtonStyle()).disabled(model.voice?.preparing == true || !hasReply || model.voicePhase == .listening)
                 }
             }.padding(RMLayout.pageInset).frame(maxWidth:680,alignment:.leading).frame(maxWidth:.infinity)
@@ -144,7 +144,7 @@ struct VoiceMiniView: View {
     @Bindable var model: AppModel
     var body: some View {
         HStack(spacing:RMLayout.rowGap) {
-            Image(systemName:"waveform"); Text(model.voicePhase.rawValue.capitalized).font(RMType.meta)
+            Image(systemName:"waveform"); Text(model.voicePhase.title).font(RMType.meta)
             Spacer()
             Button("Open voice") { model.selection = .voice }.rmTextButton()
             Button("Stop voice",systemImage:"stop.fill") { model.stopVoice() }.labelStyle(.iconOnly).rmIconButton()
@@ -163,6 +163,9 @@ struct SettingsView: View {
             Section {
                 Toggle("Encrypted iCloud sync",systemImage:"icloud",isOn:$model.data.preferences.syncHistory)
                 Button("Sync now",systemImage:"arrow.triangle.2.circlepath") { Task { await model.synchronize() } }.disabled(!model.data.preferences.syncHistory)
+                if model.data.preferences.syncHistory,let message = model.syncError {
+                    RMInlineNotice(title:"iCloud sync paused",detail:message,symbol:"icloud.slash",isError:true)
+                }
                 Button("Encrypted backup and restore",systemImage:"externaldrive") { backup = true }
                 Button("Custom personas",systemImage:"person.2") { personas = true }
             } header: { Text("History") } footer: {
@@ -188,7 +191,7 @@ struct SettingsView: View {
             }
             Section {
                 NavigationLink {
-                    ScrollView { Text((Bundle.main.url(forResource:"ThirdPartyNotices",withExtension:"txt").flatMap { try? String(contentsOf:$0,encoding:.utf8) }) ?? "Notices are unavailable.").font(RMType.meta).textSelection(.enabled).padding(RMLayout.pageInset).frame(maxWidth:760,alignment:.leading).frame(maxWidth:.infinity) }.background(RMPageBackground()).navigationTitle("Licenses")
+                    ScrollView { Text((Bundle.main.url(forResource:"ThirdPartyNotices",withExtension:"txt").flatMap { try? String(contentsOf:$0,encoding:.utf8) }) ?? String(localized:"Notices are unavailable.")).font(RMType.meta).textSelection(.enabled).padding(RMLayout.pageInset).frame(maxWidth:760,alignment:.leading).frame(maxWidth:.infinity) }.background(RMPageBackground()).navigationTitle("Licenses")
                 } label: { Label("Licenses and notices",systemImage:"doc.text") }
             } footer: {
                 Text("Repo Manager adapts MIT-licensed OnDeviceMax UI components by Mesut and iOS Local LLM contributors. Swift-Sodium 0.11.0 is ISC-licensed.")
@@ -219,7 +222,7 @@ struct WebCredentialView: View {
     var body: some View {
         RMForm {
             SecureField("Search API credential",text:$credential).privacySensitive().autocorrectionDisabled().textInputAutocapitalization(.never)
-            Text(model.data.preferences.webProvider == "direct" ? "Allow tools to fetch public HTTPS pages from the exact hosts below. URLs in repository text cannot grant access to other hosts." : "Search destination: \(model.data.preferences.webEndpoint)")
+            Text(model.data.preferences.webProvider == "direct" ? String(localized:"Allow tools to fetch public HTTPS pages from the exact hosts below. URLs in repository text cannot grant access to other hosts.") : String(localized:"Search destination: \(model.data.preferences.webEndpoint)"))
             TextField("Allowed fetch hosts, one per line",text:$allowedHosts,axis:.vertical).autocorrectionDisabled().textInputAutocapitalization(.never)
             Toggle("Allow configured web destination",isOn:$consent)
             Button("Save securely") { Task { do {
@@ -242,7 +245,7 @@ struct WebCredentialView: View {
 struct PersonasView: View {
     @Bindable var model: AppModel; @State private var editor: Persona?
     var body: some View { NavigationStack { List {
-        Button("Add persona") { editor = Persona(title:"New persona",instruction:"") }
+        Button("Add persona") { editor = Persona(title:String(localized:"New persona"),instruction:"") }
         ForEach(model.data.personas) { persona in Button(persona.title) { editor = persona } }
     }.navigationTitle("Personas").sheet(item:$editor) { PersonaEditor(model:model,initial:$0) } } }
 }
@@ -270,7 +273,7 @@ struct BackupView: View {
     var body: some View { NavigationStack { RMForm {
         Text("This bundle is authenticated and encrypted with an Argon2id-derived key. Use a strong passphrase of at least 12 characters. Credentials and live approvals are excluded.")
         SecureField("Bundle passphrase",text:$passphrase).privacySensitive().textInputAutocapitalization(.never).autocorrectionDisabled()
-        Button(conversationOnly ? "Export this conversation encrypted" : "Export encrypted backup") { create() }.rmProminentButton().disabled(busy || passphrase.count < 12)
+        Button(conversationOnly ? String(localized:"Export this conversation encrypted") : String(localized:"Export encrypted backup")) { create() }.rmProminentButton().disabled(busy || passphrase.count < 12)
         if !conversationOnly { Button("Import encrypted backup") { importing = true }.rmSecondaryButton().disabled(busy || passphrase.isEmpty) }
         if busy { ProgressView("Preparing encrypted bundle…") }
         Text("Imported drafts require explicit repository reconnection and a new native review before publication.").font(RMType.meta)

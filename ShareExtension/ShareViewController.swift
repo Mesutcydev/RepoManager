@@ -6,7 +6,7 @@ final class ShareViewController: UIViewController {
     private let label = UILabel()
     override func viewDidLoad() {
         super.viewDidLoad(); view.backgroundColor = .systemBackground
-        label.text = "Encrypting for Repo Manager…"; label.numberOfLines = 0; label.textAlignment = .center
+        label.text = String(localized:"Encrypting for Repo Manager…"); label.numberOfLines = 0; label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false; view.addSubview(label)
         NSLayoutConstraint.activate([label.centerXAnchor.constraint(equalTo:view.centerXAnchor),label.centerYAnchor.constraint(equalTo:view.centerYAnchor),label.widthAnchor.constraint(lessThanOrEqualTo:view.widthAnchor,multiplier:0.8)])
         Task { await ingest() }
@@ -15,16 +15,16 @@ final class ShareViewController: UIViewController {
         do {
             guard let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier:SharedInbox.group) else { throw RMError.unavailable }
             let root = container.appendingPathComponent("EncryptedInbox",isDirectory:true)
-            let publicKey = try BoundedFile.read(root.appendingPathComponent("public-key"),limit:32)
+            let publicKey = try SharedInbox.recipientKey()
             let items = extensionContext?.inputItems.compactMap { $0 as? NSExtensionItem }.flatMap { $0.attachments ?? [] } ?? []
             guard items.count <= 3 else { throw RMError.tooLarge }
             for item in items {
                 let payload: SharePayload
                 if item.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
-                    let text = try await loadText(item); payload = SharePayload(text:text,name:"Shared text")
+                    let text = try await loadText(item); payload = SharePayload(text:text,name:String(localized:"Shared text"))
                 } else if item.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
                     let url = try await loadURL(item); guard url.scheme == "https", url.user == nil, url.password == nil else { throw RMError.insecureURL }
-                    payload = SharePayload(text:url.absoluteString,name:"Shared URL")
+                    payload = SharePayload(text:url.absoluteString,name:String(localized:"Shared URL"))
                 } else {
                     let supported: [UTType] = [.pdf,.text,.json,.sourceCode]
                     guard let type = supported.first(where:{ item.hasItemConformingToTypeIdentifier($0.identifier) }) else { throw RMError.unsupported }
@@ -42,7 +42,7 @@ final class ShareViewController: UIViewController {
                 try JSONEncoder().encode(encrypted).write(to:output,options:[.atomic,.completeFileProtection])
                 try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:output.path)
             }
-            label.text = "Encrypted. Open Repo Manager to import."
+            label.text = String(localized:"Encrypted. Open Repo Manager to import.")
             extensionContext?.completeRequest(returningItems:nil)
         } catch { label.text = (error as? RMError ?? .unavailable).localizedDescription }
     }

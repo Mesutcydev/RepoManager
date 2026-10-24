@@ -157,12 +157,7 @@ public final class SecureHTTPTransport: HTTPTransport, Sendable {
             let task = Task {
                 do {
                     _ = try await PinnedHTTPS.exchange(request,limit:limit,checkStatus:true) { chunk in
-                        switch output.yield(chunk) {
-                        case .dropped: throw RMError.tooLarge
-                        case .terminated: throw RMError.cancelled
-                        case .enqueued: break
-                        @unknown default: throw RMError.cancelled
-                        }
+                        try await StreamDelivery.send(chunk,to:output)
                     }
                     output.finish()
                 } catch is CancellationError { output.finish(throwing:RMError.cancelled) }
@@ -174,18 +169,11 @@ public final class SecureHTTPTransport: HTTPTransport, Sendable {
     public func streamResponse(_ request: URLRequest, limit: Int) -> AsyncThrowingStream<HTTPStreamEvent, Error> {
         AsyncThrowingStream(bufferingPolicy: .bufferingOldest(16)) { output in
             let task = Task {
-                @Sendable func emit(_ event: HTTPStreamEvent) throws {
-                    switch output.yield(event) {
-                    case .dropped: throw RMError.tooLarge
-                    case .terminated: throw RMError.cancelled
-                    case .enqueued: break
-                    @unknown default: throw RMError.cancelled
-                    }
-                }
+                @Sendable func emit(_ event: HTTPStreamEvent) async throws { try await StreamDelivery.send(event,to:output) }
                 do {
                     _ = try await PinnedHTTPS.exchange(request, limit: limit, checkStatus: false,
-                        onResponse: { try emit(.response(status: $0.status, headers: $0.headers)) },
-                        emit: { try emit(.data($0)) })
+                        onResponse: { try await emit(.response(status: $0.status, headers: $0.headers)) },
+                        emit: { try await emit(.data($0)) })
                     output.finish()
                 } catch is CancellationError { output.finish(throwing: RMError.cancelled) }
                 catch { output.finish(throwing: error as? RMError ?? .connection) }

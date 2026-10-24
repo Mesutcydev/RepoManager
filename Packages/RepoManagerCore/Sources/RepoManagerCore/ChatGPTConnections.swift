@@ -15,24 +15,33 @@ public struct ChatGPTServiceError: Error, LocalizedError, Equatable, Sendable {
     }
     public var errorDescription: String? {
         switch code {
-        case "subscription_sharing_usage_limit_exceeded": return "ChatGPT usage limit reached. Open Manage usage to review your plan and this app's limit."
-        case "subscription_sharing_user_not_eligible": return "ChatGPT plan usage is unavailable for this account or workspace. Choose another provider or check eligibility in ChatGPT."
-        case "subscription_sharing_usage_unavailable", "subscription_sharing_user_unavailable": return "ChatGPT plan usage is temporarily unavailable. Your connection is retained; try again later."
-        case "subscription_sharing_unsupported_capability", "subscription_sharing_route_not_supported": return "This request uses a capability unavailable with your ChatGPT plan. Change the request before trying again."
-        case "chatpass_v2_scope_not_authorized", "chatpass_v2_invalid_authorization_context": return "ChatGPT did not authorize this operation. Review this app's access in ChatGPT settings."
-        case "invalid_client": return "ChatGPT rejected the app registration. Reconnect after the registration is corrected."
+        case "subscription_sharing_usage_limit_exceeded": return String(localized:"ChatGPT usage limit reached. Open Manage usage to review your plan and this app's limit.",bundle:.module)
+        case "subscription_sharing_user_not_eligible": return String(localized:"ChatGPT plan usage is unavailable for this account or workspace. Choose another provider or check eligibility in ChatGPT.",bundle:.module)
+        case "subscription_sharing_usage_unavailable", "subscription_sharing_user_unavailable": return String(localized:"ChatGPT plan usage is temporarily unavailable. Your connection is retained; try again later.",bundle:.module)
+        case "subscription_sharing_unsupported_capability", "subscription_sharing_route_not_supported": return String(localized:"This request uses a capability unavailable with your ChatGPT plan. Change the request before trying again.",bundle:.module)
+        case "chatpass_v2_scope_not_authorized", "chatpass_v2_invalid_authorization_context": return String(localized:"ChatGPT did not authorize this operation. Review this app's access in ChatGPT settings.",bundle:.module)
+        case "invalid_client": return String(localized:"ChatGPT rejected the app registration. Reconnect after the registration is corrected.",bundle:.module)
         default:
             if unusableRefreshToken { return ChatGPTSignInError.signedOut.localizedDescription }
             switch status {
-            case 401: return "ChatGPT could not authorize this request. Check the selected account and its plan permission."
-            case 403: return "ChatGPT restricted this request for the selected account, workspace, or region."
-            case 429: return "ChatGPT rate limit reached. Wait before trying again."
-            case 503: return "ChatGPT is temporarily unavailable. Your connection is retained; try again later."
-            default: return "ChatGPT could not complete this request. Your draft and connection are retained."
+            case 400, 422: return String(localized:"ChatGPT rejected the request format (\(safeDiagnostic)). Your conversation and connection are retained.",bundle:.module)
+            case 401: return String(localized:"ChatGPT could not authorize this request. Check the selected account and its plan permission.",bundle:.module)
+            case 403: return String(localized:"ChatGPT restricted this request for the selected account, workspace, or region.",bundle:.module)
+            case 429: return String(localized:"ChatGPT rate limit reached. Wait before trying again.",bundle:.module)
+            case 503: return String(localized:"ChatGPT is temporarily unavailable. Your connection is retained; try again later.",bundle:.module)
+            default: return String(localized:"ChatGPT could not complete this request (\(safeDiagnostic)). Your draft and connection are retained.",bundle:.module)
             }
         }
     }
-    init(status: Int, body: JSON, requestID: String? = nil) {
+    private var safeDiagnostic: String {
+        var fields = ["HTTP \(status)"]
+        let known = ["invalid_request_error", "invalid_value", "unsupported_parameter", "missing_required_parameter", "context_length_exceeded", "model_not_found", "server_error", "internal_server_error"]
+        if let code, known.contains(code) { fields.append(code) }
+        let path = #"^(input|tools|reasoning|model|include|stream|store|instructions|max_output_tokens|previous_response_id|conversation)(\[[0-9]{1,5}\])?(\.(id|type|role|content|phase|call_id|namespace|name|arguments|output|effort|summary|encrypted_content|parameters|properties|required|additionalProperties|strict)(\[[0-9]{1,5}\])?)*$"#
+        if let parameter, parameter.range(of: path, options: .regularExpression) != nil { fields.append("field: " + parameter) }
+        return fields.joined(separator: "; ")
+    }
+    public init(status: Int, body: JSON, requestID: String? = nil) {
         self.status = status
         let error = body["error"]
         code = Self.identifier(error["code"].string ?? error.string ?? body["code"].string)

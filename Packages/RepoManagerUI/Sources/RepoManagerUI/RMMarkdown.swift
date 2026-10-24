@@ -1,9 +1,10 @@
 import SwiftUI
 
-public struct RMMarkdown: View {
+public struct RMMarkdown: View, Equatable {
     public let text: String
+    public let isStreaming: Bool
     private struct Block: Identifiable { let id: Int; let content: String; let kind: Int }
-    public init(_ text: String) { self.text = text }
+    public init(_ text: String, isStreaming: Bool = false) { self.text = text; self.isStreaming = isStreaming }
     public var body: some View {
         VStack(alignment:.leading,spacing:RMLayout.rowGap) {
             ForEach(blocks) { block in
@@ -29,6 +30,11 @@ public struct RMMarkdown: View {
                     Text(inline(block.content)).font(RMType.body).lineSpacing(4).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading)
                 }
             }
+        }
+        // Keep the answer's block hierarchy mounted through reasoning, tool
+        // pauses and completion. The caret never changes text measurement.
+        .overlay(alignment:.bottomTrailing) {
+            if isStreaming { RMStreamingCaret().offset(x:4) }
         }
     }
     private func inline(_ string: String) -> AttributedString {

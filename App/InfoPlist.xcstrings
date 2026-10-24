@@ -1,0 +1,202 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSLocalNetworkUsageDescription": {
+      "extractionState": "manual",
+      "generatesSymbol": false,
+      "comment": "System permission prompt or share extension display name.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Host the explicitly enabled, authenticated HTTPS API for your paired agent clients."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hoste die ausdrücklich aktivierte, authentifizierte HTTPS-API für deine gekoppelten Agent-Clients."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alojar la API HTTPS autenticada y activada explícitamente para tus clientes de agentes vinculados."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استضافة API HTTPS المفعّلة صراحةً والمصادَق عليها لعملاء الوكلاء المرتبطين."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eşleştirilmiş ajan istemcilerin için açıkça etkinleştirilen, kimlik doğrulamalı HTTPS API’sini barındır."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "明示的に有効にした認証付きHTTPS APIを、接続済みのエージェントクライアント向けにホストします。"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "जुड़े एजेंट क्लाइंट के लिए स्पष्ट रूप से चालू प्रमाणित HTTPS API होस्ट करें।"
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription": {
+      "extractionState": "manual",
+      "generatesSymbol": false,
+      "comment": "System permission prompt or share extension display name.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dictate messages and have spoken conversations using Apple-native speech. Audio stays in memory."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diktiere Nachrichten und führe Sprachgespräche mit Apples nativen Sprachdiensten. Audio bleibt im Arbeitsspeicher."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dicta mensajes y conversa por voz con servicios nativos de Apple. El audio permanece en memoria."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أملِ رسائل وأجرِ محادثات صوتية بخدمات Apple الأصلية. يبقى الصوت في الذاكرة."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple’ın yerel konuşma hizmetleriyle mesaj dikte et ve sesli sohbet yap. Ses bellekte kalır."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appleのネイティブ音声機能でメッセージを入力したり音声会話を行います。音声はメモリ内にのみ保持します。"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple की नेटिव वाणी से संदेश बोलें और वॉइस बातचीत करें। ऑडियो मेमोरी में रहता है।"
+          }
+        }
+      }
+    },
+    "NSFaceIDUsageDescription": {
+      "extractionState": "manual",
+      "generatesSymbol": false,
+      "comment": "System permission prompt or share extension display name.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authenticate consequential GitHub changes, repository deletion, transfers and secure data removal."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authentifiziere folgenreiche GitHub-Änderungen, Repository-Löschungen, Übertragungen und sichere Datenentfernung."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autenticar cambios importantes de GitHub, eliminación de repositorios, transferencias y borrado seguro de datos."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المصادقة على تغييرات GitHub المهمة وحذف المستودعات ونقلها وإزالة البيانات الآمنة."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Önemli GitHub değişiklikleri, depo silme, aktarma ve güvenli veri kaldırma için kimliğini doğrula."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重要なGitHubの変更、リポジトリの削除・移譲、安全なデータ消去を認証します。"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "महत्वपूर्ण GitHub बदलाव, रिपॉज़िटरी मिटाने, स्थानांतरण और सुरक्षित डेटा हटाने के लिए प्रमाणित करें।"
+          }
+        }
+      }
+    },
+    "NSSpeechRecognitionUsageDescription": {
+      "extractionState": "manual",
+      "generatesSymbol": false,
+      "comment": "System permission prompt or share extension display name.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcribe your voice on the device with Apple-native speech recognition."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkribiere deine Stimme auf dem Gerät mit Apples nativer Spracherkennung."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcribir tu voz en el dispositivo con reconocimiento nativo de Apple."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تفريغ صوتك نصيًا على الجهاز بالتعرف الأصلي على الكلام من Apple."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple’ın yerel konuşma tanımasıyla sesini aygıtta yazıya dök."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appleのネイティブ音声認識を使い、デバイス内で音声を文字に変換します。"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple की नेटिव वाणी पहचान से अपनी आवाज़ डिवाइस पर लिप्यंतरित करें।"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

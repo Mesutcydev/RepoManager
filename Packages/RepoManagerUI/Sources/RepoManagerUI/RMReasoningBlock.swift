@@ -7,20 +7,23 @@ public struct RMReasoningBlock: View {
     public let isOpen: Bool
     public let seconds: Int?
     public let startedAt: Date?
-    @State private var expanded = false
+    public let isResponding: Bool
+    @State private var expanded: Bool? = nil
     @Environment(\.rmMotionIsReduced) private var reduceMotion
 
-    public init(content: String, isOpen: Bool, seconds: Int? = nil, startedAt: Date? = nil) {
+    public init(content: String, isOpen: Bool, seconds: Int? = nil, startedAt: Date? = nil, isResponding: Bool? = nil) {
         self.content = content
         self.isOpen = isOpen
         self.seconds = seconds
         self.startedAt = startedAt
+        self.isResponding = isResponding ?? isOpen
     }
+    private var showsContent: Bool { expanded ?? isResponding }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
-                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) { expanded.toggle() }
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) { expanded = !showsContent }
             } label: {
                 HStack(spacing: RMLayout.elementGap) {
                     if isOpen {
@@ -41,12 +44,8 @@ public struct RMReasoningBlock: View {
                         .font(.system(.caption, design: .monospaced, weight: .medium))
                         .foregroundStyle(RMPalette.secondary)
                     }
-                    if isOpen && !expanded {
-                        RMStreamingText(content: "", font: .footnote, color: RMPalette.secondary)
-                            .fixedSize()
-                    }
                     Rectangle().fill(RMPalette.line).frame(height: 1).accessibilityHidden(true)
-                    Text(expanded ? "Hide" : "Show", bundle: .module)
+                    Text(showsContent ? "Hide" : "Show", bundle: .module)
                         .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(RMPalette.secondary)
                 }
@@ -55,18 +54,16 @@ public struct RMReasoningBlock: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityValue(expanded ? "Expanded" : "Collapsed")
+            .accessibilityValue(showsContent ? String(localized:"Expanded",bundle:.module) : String(localized:"Collapsed",bundle:.module))
             .accessibilityIdentifier("chat.reasoning")
 
-            if expanded && isOpen {
-                RMStreamingText(content: content, font: .system(size: 14),
-                                color: RMPalette.secondary, lineSpacing: 5)
-                    .padding(.top, content.isEmpty ? 4 : 6)
-                    .padding(.bottom, RMLayout.elementGap)
-            } else if expanded {
+            if showsContent {
                 Rectangle().fill(RMPalette.line).frame(height: 1)
                     .padding(.vertical, RMLayout.unit).accessibilityHidden(true)
                 reasoningText.textSelection(.enabled)
+                    .overlay(alignment:.bottomTrailing) {
+                        if isOpen { RMStreamingCaret(color:RMPalette.secondary).offset(x:4) }
+                    }
             }
         }
     }
@@ -78,6 +75,5 @@ public struct RMReasoningBlock: View {
             .lineSpacing(5)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.bottom, RMLayout.elementGap)
-            .transition(.opacity.combined(with: .move(edge: .top)))
     }
 }

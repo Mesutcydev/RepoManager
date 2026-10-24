@@ -9,15 +9,15 @@ struct OnboardingView: View {
     @State private var providers = false
     @State private var preview = false
     @Environment(\.accessibilityReduceMotion) private var reduced
-    private let titles = ["A little closer\nto your code.","Your connections.\nYour choice.","Every change,\nin your hands."]
-    private let details = ["A native workspace for your GitHub repositories. Read, discuss, and shape your next change in one place.","Pair GitHub and bring the API provider you trust. You choose the repository, model, and destination for each conversation.","Plan first. Stage when you’re ready. A complete review stands between every draft and GitHub."]
+    private let titles = [String(localized:"A little closer\nto your code."),String(localized:"Your connections.\nYour choice."),String(localized:"Every change,\nin your hands.")]
+    private let details = [String(localized:"A native workspace for your GitHub repositories. Read, discuss, and shape your next change in one place."),String(localized:"Pair GitHub and bring the API provider you trust. You choose the repository, model, and destination for each conversation."),String(localized:"Plan first. Stage when you’re ready. A complete review stands between every draft and GitHub.")]
     var body: some View {
         VStack(spacing:0) {
             HStack(spacing:RMLayout.rowGap) {
                 RMBrandGlyph().frame(width:RMLayout.minimumHit,height:RMLayout.minimumHit)
                 Text("Repo Manager").font(RMType.detail.weight(.semibold))
                 Spacer()
-                Text("\(page+1) of 3").font(RMType.detail).monospacedDigit().foregroundStyle(RMPalette.secondary)
+                Text("\(page+1) of \(titles.count)").font(RMType.detail).monospacedDigit().foregroundStyle(RMPalette.secondary)
             }.padding(.horizontal,RMLayout.pageInset).padding(.top,RMLayout.cardInset).padding(.bottom,RMLayout.pageInset)
             ScrollView {
                 VStack(alignment:.leading,spacing:RMLayout.groupGap) {
@@ -35,10 +35,10 @@ struct OnboardingView: View {
             .safeAreaBar(edge:.bottom) { VStack(spacing:RMLayout.rowGap) {
                 HStack(spacing:RMLayout.unit) {
                     Image(systemName:"lock.fill").font(RMType.meta)
-                    Text(page == 1 ? "Credentials stay in Keychain." : "Your local workspace stays encrypted.").font(RMType.meta)
+                    Text(page == 1 ? String(localized:"Credentials stay in Keychain.") : String(localized:"Your local workspace stays encrypted.")).font(RMType.meta)
                 }.foregroundStyle(RMPalette.secondary)
                 Button { advance() } label: {
-                    HStack { Text(page == 2 ? "Open my workspace" : "Continue"); Spacer(); Image(systemName:"arrow.right") }
+                    HStack { Text(page == 2 ? String(localized:"Open my workspace") : String(localized:"Continue")); Spacer(); Image(systemName:"arrow.forward") }
                 }.rmProminentButton().accessibilityIdentifier("onboarding.continue")
                 Button("Back") { change(page-1) }.rmTextButton().accessibilityIdentifier("onboarding.back")
                     .opacity(page > 0 ? 1 : 0).disabled(page == 0).accessibilityHidden(page == 0)
@@ -49,24 +49,24 @@ struct OnboardingView: View {
 
     }
     private var connections: some View {
-        RMCard(footer:"You can set these up later. Network requests begin only after you configure and allow a destination.") {
-            connection("GitHub",detail:model.data.accounts.isEmpty ? "Pair the repositories you work on." : model.data.accounts.count == 1 ? "1 account connected" : "\(model.data.accounts.count) accounts connected",
+        RMCard(footer:String(localized:"You can set these up later. Network requests begin only after you configure and allow a destination.")) {
+            connection("GitHub",detail:model.data.accounts.isEmpty ? String(localized:"Pair the repositories you work on.") : model.data.accounts.count == 1 ? String(localized:"1 account connected") : String(localized:"\(model.data.accounts.count) accounts connected"),
                        symbol:"arrow.triangle.branch",done:!model.data.accounts.isEmpty) { pairing = true }
-            connection("API provider",detail:model.data.providers.isEmpty ? "Bring a key. Choose your model." : model.data.providers.count == 1 ? "1 provider configured" : "\(model.data.providers.count) providers configured",
+            connection(String(localized:"API provider"),detail:model.data.providers.isEmpty ? String(localized:"Bring a key. Choose your model.") : model.data.providers.count == 1 ? String(localized:"1 provider configured") : String(localized:"\(model.data.providers.count) providers configured"),
                        symbol:"point.3.connected.trianglepath.dotted",done:!model.data.providers.isEmpty) { providers = true }
         }
     }
     private func connection(_ title:String,detail:String,symbol:String,done:Bool,action:@escaping () -> Void) -> some View {
         Button(action:action) {
             RMRow(title,detail:detail,accessory:done ? .selected(true) : .chevron) { RMIconTile(symbol) } trailing: { EmptyView() }
-        }.buttonStyle(RMPressButtonStyle()).accessibilityHint(title == "GitHub" ? "Connect GitHub" : "Choose a provider")
+        }.buttonStyle(RMPressButtonStyle()).accessibilityHint(title == "GitHub" ? String(localized:"Connect GitHub") : String(localized:"Choose a provider"))
     }
     private var review: some View {
         VStack(alignment:.leading,spacing:RMLayout.pageInset) {
             HStack(spacing:RMLayout.rowGap) {
-                RMEyebrow("Example")
+                RMEyebrow(String(localized:"Example"))
                 Spacer()
-                Text(preview ? "Review" : "Draft").font(RMType.meta.weight(.medium)).foregroundStyle(RMPalette.accentText)
+                Text(preview ? String(localized:"Review") : String(localized:"Draft")).font(RMType.meta.weight(.medium)).foregroundStyle(RMPalette.accentText)
             }
             VStack(alignment:.leading,spacing:0) {
                 HStack { Image(systemName:"doc.text"); Text("README.md"); Spacer(); Text("+1 −1").foregroundStyle(RMPalette.accentText) }
@@ -78,7 +78,7 @@ struct OnboardingView: View {
                     HStack(spacing:RMLayout.elementGap) { Image(systemName:"checkmark.shield"); Text("One file. One branch. Your review.") }.font(RMType.meta).padding(RMLayout.cardInset).transition(.opacity)
                 }
             }.font(.system(.footnote,design:.monospaced)).rmSurface().clipShape(RoundedRectangle(cornerRadius:RMLayout.cardCorner,style:.continuous))
-            Button(preview ? "Return to draft" : "Preview the review") { withAnimation(reduced ? nil : .easeOut(duration:0.2)) { preview.toggle() } }.rmSecondaryButton()
+            Button(preview ? String(localized:"Return to draft") : String(localized:"Preview the review")) { withAnimation(reduced ? nil : .easeOut(duration:0.2)) { preview.toggle() } }.rmSecondaryButton()
                 .accessibilityIdentifier("onboarding.review")
             Text("This example stays here. Real approvals always identify the account, repository, branch, and complete change.").font(RMType.meta).foregroundStyle(RMPalette.secondary).lineSpacing(3)
         }

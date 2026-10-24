@@ -5,6 +5,38 @@ import CryptoKit
 @testable import RepoManagerCore
 
 @Suite struct NetworkingAcceptance {
+    @Test func unreachablePrimaryAddressUsesOtherValidatedFamily() async throws {
+        let recorder = ConnectionAttempts()
+        let ipv6 = "2606:4700:4700::1111",ipv4 = "8.8.8.8"
+        let connected = try await ValidatedEndpoints.connect([ipv6,"2606:4700:4700::1001",ipv4]) { address in
+            await recorder.add(address)
+            if address.contains(":") { throw RMError.connection }
+            return address
+        }
+        #expect(connected == ipv4)
+        #expect(await recorder.values == [ipv6,ipv4])
+    }
+    @Test func endpointSelectionRejectsUnsafeDNSAndCertificateFailure() async throws {
+        let recorder = ConnectionAttempts()
+        await #expect(throws:RMError.insecureURL) {
+            _ = try await ValidatedEndpoints.connect(["8.8.8.8","127.0.0.1"]) { address in await recorder.add(address); return address }
+        }
+        #expect(await recorder.values.isEmpty)
+        await #expect(throws:RMError.insecureURL) {
+            _ = try await ValidatedEndpoints.connect(["8.8.8.8","1.1.1.1"]) { address -> String in await recorder.add(address); throw RMError.insecureURL }
+        }
+        #expect(await recorder.values == ["8.8.8.8"], "A certificate failure must not become an alternate connection attempt")
+    }
+    @Test func fullStreamCanBeCancelledWithoutDroppingQueuedContent() async throws {
+        let pair = AsyncThrowingStream<String,Error>.makeStream(bufferingPolicy:.bufferingOldest(1))
+        try await StreamDelivery.send("first",to:pair.continuation)
+        let waiting = Task { try await StreamDelivery.send("second",to:pair.continuation) }
+        try await Task.sleep(for:.milliseconds(30)); waiting.cancel()
+        await #expect(throws:CancellationError.self) { try await waiting.value }
+        pair.continuation.finish()
+        var received:[String] = []; for try await value in pair.stream { received.append(value) }
+        #expect(received == ["first"])
+    }
     @Test(arguments:[1,2,7,4096]) func splitHeadersAndChunkedUTF8(_ size:Int) throws {
         let text = "repository 👩🏽‍💻 İstanbul",body = Data(text.utf8)
         let wire = Data("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nContent-Type: text/event-stream\r\nSet-Cookie: discarded\r\n\r\n\(String(body.count,radix:16));ok=1\r\n".utf8)+body+Data("\r\n0\r\nX-Usage: bounded\r\n\r\n".utf8)
@@ -23,6 +55,9 @@ import CryptoKit
         #expect(throws:RMError.tooLarge) { try parser.feed(Data("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok".utf8)) }
         var truncated = HTTPResponseFramer(limit:4)
         #expect(throws:RMError.connection) { try truncated.feed(Data("HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nx".utf8),eof:true) }
+        // Int.max chunk size after a prior chunk must throw, not trap on total+size.
+        var overflow = HTTPResponseFramer(limit:8*1024*1024)
+        #expect(throws:RMError.invalidInput) { try overflow.feed(Data("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\nA\r\n7fffffffffffffff\r\n".utf8)) }
     }
     @Test func informationalResponseAndCloseDelimitedBody() throws {
         var parser = HTTPResponseFramer(limit:100)
@@ -62,4 +97,9 @@ import CryptoKit
         #expect(!PinnedTLSVerification.accept(try trust(anchor:cert,date:Date().addingTimeInterval(60*86400)),hostname:"localhost"))
         #expect(!PinnedTLSVerification.accept(try trust(anchor:changed),hostname:"localhost"))
     }
+}
+
+private actor ConnectionAttempts {
+    private(set) var values:[String] = []
+    func add(_ value:String) { values.append(value) }
 }

@@ -19,6 +19,7 @@ enum AppProConfiguration {
     private(set) var unlocked = false
     private(set) var loading = false
     private(set) var busy = false
+    private(set) var purchasePending = false
     private(set) var price: String?
     private(set) var message: String?
     @ObservationIgnored private var product: Product?
@@ -31,7 +32,7 @@ enum AppProConfiguration {
         access = ProviderAccessGate(enforced:enabled)
     }
     deinit { updates?.cancel() }
-    var canPurchase: Bool { enabled && !unlocked && !busy && !loading && (product != nil || DevelopmentFixtures.pro) }
+    var canPurchase: Bool { enabled && !unlocked && !busy && !loading && !purchasePending && (product != nil || DevelopmentFixtures.pro) }
     func requiresUnlock(_ profile: ProviderProfile) -> Bool { enabled && !unlocked && ProviderAccessPolicy.requiresPro(profile) }
 
     func start() {
@@ -47,7 +48,14 @@ enum AppProConfiguration {
                 guard let self,!Task.isCancelled else { return }
                 guard case let .verified(transaction) = result,transaction.productID == productID,
                       transaction.productType == .nonConsumable else { continue }
-                await self.refreshEntitlements()
+                if transaction.revocationDate == nil {
+                    // A verified approval is authoritative before StoreKit's
+                    // entitlement snapshot has necessarily caught up.
+                    self.entitlementEpoch &+= 1
+                    await self.apply(true)
+                } else {
+                    await self.refreshEntitlements()
+                }
                 await transaction.finish()
             }
         }
@@ -55,15 +63,16 @@ enum AppProConfiguration {
     }
     func loadProduct() async {
         guard enabled,!loading else { return }
-        loading = true; defer { loading = false }
+        loading = true; product = nil; price = nil; message = nil
+        defer { loading = false }
         await refreshEntitlements()
         if DevelopmentFixtures.pro { price = "$9.99"; return }
         do {
             let products = try await Product.products(for:[AppProConfiguration.productID])
             product = products.first { $0.id == AppProConfiguration.productID && $0.type == .nonConsumable }
             price = product?.displayPrice
-            if product == nil { message = "Pro is not available for purchase in this storefront yet. You can still restore an existing purchase." }
-        } catch { message = "Couldn’t load the App Store price. Try again when connected." }
+            if product == nil { message = String(localized:"Pro is not available for purchase in this storefront yet. You can still restore an existing purchase.") }
+        } catch { message = String(localized:"Couldn’t load the App Store price. Try again when connected.") }
     }
     func refreshEntitlements() async {
         guard enabled else { return }
@@ -90,28 +99,52 @@ enum AppProConfiguration {
             case let .success(result):
                 guard case let .verified(transaction) = result,transaction.productID == AppProConfiguration.productID,
                       transaction.productType == .nonConsumable,transaction.revocationDate == nil else {
-                    message = "The App Store purchase could not be verified. Pro has not been unlocked."; return
+                    message = String(localized:"The App Store purchase could not be verified. Pro has not been unlocked."); return
                 }
-                await refreshEntitlements(); await transaction.finish()
-                if !unlocked { message = "The purchase is being confirmed. Try Restore Purchases if it doesn’t appear." }
-            case .pending: message = "Purchase approval is pending. Pro will unlock when the App Store confirms it."
+                entitlementEpoch &+= 1
+                await apply(true); await transaction.finish()
+            case .pending:
+                purchasePending = true
+                message = String(localized:"Purchase approval is pending. Pro will unlock when the App Store confirms it.")
             case .userCancelled: break
-            @unknown default: message = "The App Store returned an unknown purchase state. Try Restore Purchases."
+            @unknown default: message = String(localized:"The App Store returned an unknown purchase state. Try Restore Purchases.")
             }
-        } catch { message = "The purchase couldn’t be completed. You can try again or restore an existing purchase." }
+        } catch {
+            if !Self.isPurchaseCancellation(error) {
+                message = String(localized:"The purchase couldn’t be completed. You can try again or restore an existing purchase.")
+            }
+        }
     }
     func restore() async {
         guard enabled,!busy else { return }
         busy = true; message = nil; defer { busy = false }
         if DevelopmentFixtures.pro {
-            await apply(fixtureOwned); message = unlocked ? "Pro purchase restored." : "No Pro purchase was found."; return
+            await apply(fixtureOwned); message = unlocked ? String(localized:"Pro purchase restored.") : String(localized:"No Pro purchase was found."); return
         }
         do {
             try await AppStore.sync(); await refreshEntitlements()
-            message = unlocked ? "Pro purchase restored." : "No Pro purchase was found for this Apple Account."
-        } catch { message = "Couldn’t restore purchases. Check your App Store account and try again." }
+            message = unlocked ? String(localized:"Pro purchase restored.") : String(localized:"No Pro purchase was found for this Apple Account.")
+        } catch { message = String(localized:"Couldn’t restore purchases. Check your App Store account and try again.") }
     }
     private func apply(_ value: Bool) async {
         await access.setUnlocked(value); unlocked = value
+        if value { purchasePending = false; message = nil }
+    }
+    private static func isPurchaseCancellation(_ error: any Error, depth: Int = 0) -> Bool {
+        guard depth < 4 else { return false }
+        if let storeError = error as? StoreKitError {
+            switch storeError {
+            case .userCancelled: return true
+            case .systemError(let underlying): return isPurchaseCancellation(underlying, depth: depth + 1)
+            default: break
+            }
+        }
+        let failure = error as NSError
+        if failure.domain == SKErrorDomain && failure.code == SKError.paymentCancelled.rawValue { return true }
+        if failure.domain == NSCocoaErrorDomain && failure.code == NSUserCancelledError { return true }
+        if let underlying = failure.userInfo[NSUnderlyingErrorKey] as? any Error {
+            return isPurchaseCancellation(underlying, depth: depth + 1)
+        }
+        return false
     }
 }

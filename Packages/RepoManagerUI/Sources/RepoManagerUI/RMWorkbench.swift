@@ -7,8 +7,27 @@ public struct RMAttachment: Identifiable, Equatable {
 public enum RMWorkspace: String, CaseIterable, Identifiable {
     case chats, chat, repositories, changes, issues, pullRequests, actions, releases, security, activity, providers, tools, voice, apiServer
     public var id: String { rawValue }
-    public var title: String {
+    /// Stable English group used by the tool catalog. Never use a translated title for routing.
+    public var catalogGroup: String {
         switch self { case .pullRequests: "Pull requests"; case .apiServer: "API server"; default: rawValue.capitalized }
+    }
+    public var title: String {
+        switch self {
+        case .chats: String(localized:"Chats",bundle:.module)
+        case .chat: String(localized:"Chat",bundle:.module)
+        case .repositories: String(localized:"Repositories",bundle:.module)
+        case .changes: String(localized:"Changes",bundle:.module)
+        case .issues: String(localized:"Issues",bundle:.module)
+        case .pullRequests: String(localized:"Pull requests",bundle:.module)
+        case .actions: String(localized:"Actions",bundle:.module)
+        case .releases: String(localized:"Releases",bundle:.module)
+        case .security: String(localized:"Security",bundle:.module)
+        case .activity: String(localized:"Activity",bundle:.module)
+        case .providers: String(localized:"Providers",bundle:.module)
+        case .tools: String(localized:"Tools",bundle:.module)
+        case .voice: String(localized:"Voice",bundle:.module)
+        case .apiServer: String(localized:"API server",bundle:.module)
+        }
     }
     public var symbol: String {
         switch self {
@@ -19,8 +38,12 @@ public enum RMWorkspace: String, CaseIterable, Identifiable {
         }
     }
 }
+private struct RMNavigationFocusRevisionKey: EnvironmentKey { static let defaultValue = 0 }
+private struct RMAdaptiveBarsKey: EnvironmentKey { static let defaultValue = false }
 private struct RMWorkspaceVisibleKey: EnvironmentKey { static let defaultValue = true }
 extension EnvironmentValues {
+    public var rmUsesAdaptiveBars: Bool { get { self[RMAdaptiveBarsKey.self] } set { self[RMAdaptiveBarsKey.self] = newValue } }
+    public var rmNavigationFocusRevision: Int { get { self[RMNavigationFocusRevisionKey.self] } set { self[RMNavigationFocusRevisionKey.self] = newValue } }
     public var rmWorkspaceVisible: Bool { get { self[RMWorkspaceVisibleKey.self] } set { self[RMWorkspaceVisibleKey.self] = newValue } }
 }
 public struct RMPressButtonStyle: ButtonStyle {
@@ -35,9 +58,64 @@ public struct RMRecentChat: Identifiable, Equatable {
     public init(id: String, title: String, detail: String) { self.id = id; self.title = title; self.detail = detail }
 }
 
+
+/// Preserve the established workbench unless the window supports Duo's adaptive bars.
+public struct RMWorkbench: View {
+    @Binding private var selection: RMWorkspace
+    @Environment(\.rmUsesAdaptiveBars) private var adaptive
+    private let recents: [RMRecentChat]; private let currentRecentID: String?
+    private let openRecent: (String) -> Void
+    private let settings: () -> Void; private let newChat: () -> Void
+    private let principal: (RMWorkspace) -> AnyView?
+    private let actions: (RMWorkspace) -> AnyView?
+    private let content: (RMWorkspace) -> AnyView
+    public init(selection: Binding<RMWorkspace>, recents: [RMRecentChat] = [], currentRecentID: String? = nil,
+                openRecent: @escaping (String) -> Void = { _ in }, settings: @escaping () -> Void,
+                newChat: @escaping () -> Void, principal: @escaping (RMWorkspace) -> AnyView? = { _ in nil },
+                actions: @escaping (RMWorkspace) -> AnyView? = { _ in nil },
+                content: @escaping (RMWorkspace) -> AnyView) {
+        _selection = selection; self.recents = recents; self.currentRecentID = currentRecentID
+        self.openRecent = openRecent; self.settings = settings; self.newChat = newChat
+        self.principal = principal; self.actions = actions; self.content = content
+    }
+    public var body: some View {
+        if adaptive {
+            RMDuoWorkbench(selection:$selection,recents:recents,currentRecentID:currentRecentID,
+                           openRecent:openRecent,settings:settings,newChat:newChat,actions:actions,content:content)
+        } else {
+            RMClassicWorkbench(selection:$selection,recents:recents,currentRecentID:currentRecentID,
+                               openRecent:openRecent,settings:settings,newChat:newChat,principal:principal,actions:actions,content:content)
+        }
+    }
+}
+
+public extension View {
+    /// The system reports a preferred vertical edge only on windows supporting adaptive bars.
+    /// It is a capability, not a test of the current bar orientation or hinge angle.
+    func rmAdaptiveBarsEnvironment() -> some View { modifier(RMAdaptiveBarsEnvironment()) }
+}
+private struct RMAdaptiveBarsEnvironment: ViewModifier {
+    @ViewBuilder func body(content: Content) -> some View {
+        #if !targetEnvironment(macCatalyst)
+        if #available(iOS 27.1, *) { RMAdaptiveBarsReader(content:content) }
+        else { content }
+        #else
+        content
+        #endif
+    }
+}
+#if !targetEnvironment(macCatalyst)
+@available(iOS 27.1, *)
+private struct RMAdaptiveBarsReader<Content:View>:View {
+    let content: Content
+    @Environment(\.toolbarVerticalEdge) private var verticalEdge
+    var body: some View { content.environment(\.rmUsesAdaptiveBars,verticalEdge != nil) }
+}
+#endif
+
 /// OnDeviceMax's push drawer: the workspace becomes a card that slides aside over a
 /// parallax drawer. Visited workspaces stay mounted so drafts and scroll positions survive.
-public struct RMWorkbench: View {
+private struct RMClassicWorkbench: View {
     @Binding private var selection: RMWorkspace
     @State private var visited: Set<RMWorkspace> = [.chats,.chat]
     /// `drawer` is the intent; `drawerOpen` is its animated mirror, and the drawer
@@ -45,7 +123,7 @@ public struct RMWorkbench: View {
     @State private var drawer = false
     @State private var drawerOpen = false
     @State private var drawerMounted = false
-    @GestureState(resetTransaction: Transaction(animation: RMWorkbench.spring)) private var dragOffset: CGFloat = 0
+    @GestureState(resetTransaction: Transaction(animation: RMClassicWorkbench.spring)) private var dragOffset: CGFloat = 0
     @Environment(\.layoutDirection) private var direction
     @Environment(\.rmMotionIsReduced) private var reduced
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -96,7 +174,7 @@ public struct RMWorkbench: View {
                         // No dimming: the card keeps full brightness. Tapping it closes the drawer.
                         if drawer {
                             Button { close() } label: { Color.clear.contentShape(Rectangle()).frame(maxWidth: .infinity, maxHeight: .infinity) }
-                                .buttonStyle(.plain).accessibilityLabel("Close sidebar").accessibilityIdentifier("navigation.dismissMenu")
+                                .buttonStyle(.plain).accessibilityLabel(Text("Close sidebar", bundle: .module)).accessibilityIdentifier("navigation.dismissMenu")
                                 .gesture(dragGesture(width: width, sign: sign))
                         }
                     }
@@ -139,32 +217,54 @@ public struct RMWorkbench: View {
                 Button { drawer = true } label: { RMMenuMark() }
                     .rmIconButton()
                     .accessibilityHidden(drawer)
-                    .accessibilityLabel("Open sidebar").accessibilityIdentifier("navigation.sidebar")
+                    .accessibilityLabel(Text("Open sidebar", bundle: .module)).accessibilityIdentifier("navigation.sidebar")
                 Spacer(minLength: 0)
                 if !drawer, let trailing = actions(selection) { trailing }
                 Button(action: newChat) { Image(systemName: "square.and.pencil") }
                     .rmIconButton()
                     .accessibilityHidden(drawer)
-                    .accessibilityLabel("New chat").accessibilityIdentifier("navigation.newChat")
+                    .accessibilityLabel(Text("New chat", bundle: .module)).accessibilityIdentifier("navigation.newChat")
             }
             // The principal is centered on the bar, clear of the widest side: two 44-pt circles and a gap.
             .overlay {
                 // SwiftUI's nested native presentation host can retain a
                 // principal button in AX despite ancestor accessibilityHidden.
                 // Remove that control while the modal drawer owns focus.
-                if !drawer, let center = principal(selection) {
+                if !drawer, !typeSize.isAccessibilitySize, let center = principal(selection) {
                     center.padding(.horizontal, 2 * RMLayout.minimumHit + 2 * RMLayout.elementGap)
                 }
             }
             .foregroundStyle(RMPalette.text).padding(.horizontal, RMLayout.pageInset).padding(.bottom, RMLayout.elementGap)
-            ZStack {
-                ForEach(RMWorkspace.allCases.filter { visited.contains($0) }) { page in
-                    RMMountedWorkspace(content: content(page), visible: selection == page, interactive: !drawer)
-                        .opacity(selection == page ? 1 : 0)
-                        .allowsHitTesting(selection == page && !drawer)
-                        .accessibilityHidden(selection != page || drawer)
-                        .zIndex(selection == page ? 1 : 0)
+            if !drawer, typeSize.isAccessibilitySize, let center = principal(selection) {
+                center.padding(.horizontal, RMLayout.pageInset).padding(.bottom, RMLayout.elementGap)
+            }
+            GeometryReader { viewport in
+                ZStack {
+                    ForEach(RMWorkspace.allCases.filter { visited.contains($0) }) { page in
+                        Group {
+                            if page == .chat {
+                                // A growing transcript must share the workbench's
+                                // SwiftUI layout, not a second hosting root whose
+                                // window safe area can obscure the fixed chrome.
+                                // Drafts and reading anchors belong to the host's
+                                // conversation model. Remove inactive chat input
+                                // so its native text field cannot intercept hits
+                                // or publish accessibility nodes over another page.
+                                if selection == page {
+                                    content(page).environment(\.rmWorkspaceVisible,!drawer)
+                                }
+                            } else {
+                                RMMountedWorkspace(content: content(page), visible: selection == page, interactive: !drawer)
+                            }
+                        }
+                            .opacity(selection == page ? 1 : 0)
+                            .allowsHitTesting(selection == page && !drawer)
+                            .accessibilityHidden(selection != page || drawer)
+                            .zIndex(selection == page ? 1 : 0)
+                    }
                 }
+                .frame(width:viewport.size.width,height:viewport.size.height)
+                .clipped()
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .allowsHitTesting(!drawer).accessibilityHidden(drawer)
@@ -207,59 +307,84 @@ private struct RMDrawer: View {
                 RMBrandGlyph().frame(width: RMLayout.tile, height: RMLayout.tile)
                 Text("Repo Manager").font(RMType.title).fixedSize(horizontal:false,vertical:true)
                     .accessibilityAddTraits(.isHeader).frame(maxWidth: .infinity, alignment: .leading)
-                RMGlassIconButton("gearshape", label: "Settings", action: settings).accessibilityIdentifier("navigation.settings")
-            }
+                RMGlassIconButton("gearshape", label: String(localized:"Settings",bundle:.module), action: settings).accessibilityIdentifier("navigation.settings")
+            }.padding(.horizontal, RMLayout.pageInset)
             ScrollView {
                 VStack(alignment: .leading, spacing: RMLayout.groupGap) {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: RMLayout.elementGap), count: typeSize.isAccessibilitySize ? 1 : 3), spacing: RMLayout.elementGap) {
                         ForEach(destinations) { page in RMDrawerTile(page: page, selected: selection == page) { go(page) } }
-                    }
+                    }.padding(.horizontal, RMLayout.rowGap)
                     recentsSection
-                }.padding(.top, RMLayout.pageInset).padding(.bottom, RMLayout.groupGap)
+                }
+                // Keep the row's rounded highlight inside the scroll viewport,
+                // while its text shares the header and destination-grid inset.
+                .padding(.horizontal, RMLayout.pageInset - RMLayout.rowGap)
+                .padding(.top, RMLayout.pageInset).padding(.bottom, RMLayout.groupGap)
             }.scrollIndicators(.hidden).accessibilityIdentifier("navigation.drawerScroll")
-            footer
+            footer.padding(.horizontal, RMLayout.pageInset)
         }
-        .padding(.horizontal, RMLayout.pageInset).padding(.bottom, RMLayout.elementGap)
+        .padding(.bottom, RMLayout.elementGap)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         // One step below the page, so the workspace reads as a card resting on it.
         .background { RMDrawerBackdrop() }
         .foregroundStyle(RMPalette.text)
-        .accessibilityElement(children: .contain).accessibilityLabel("App navigation").accessibilityIdentifier("navigation.drawer")
+        .accessibilityElement(children: .contain).accessibilityLabel(Text("App navigation", bundle: .module)).accessibilityIdentifier("navigation.drawer")
     }
     private var recentsSection: some View {
         VStack(alignment: .leading, spacing: RMLayout.unit) {
             HStack(alignment: .firstTextBaseline) {
-                Text("Recents").font(RMType.rowTitle).accessibilityAddTraits(.isHeader)
+                Text("Recents", bundle: .module).font(RMType.rowTitle).accessibilityAddTraits(.isHeader)
                 Spacer(minLength: RMLayout.elementGap)
                 Button { go(.chats) } label: {
-                    HStack(spacing: RMLayout.unit) { Text("All chats"); Image(systemName: "chevron.forward").font(RMType.label).accessibilityHidden(true) }
+                    HStack(spacing: RMLayout.unit) { Text("All chats", bundle: .module); Image(systemName: "chevron.forward").font(RMType.label).accessibilityHidden(true) }
                         .font(RMType.detail).foregroundStyle(RMPalette.secondary).frame(minHeight: RMLayout.minimumHit).contentShape(Rectangle())
                 }.buttonStyle(RMPressButtonStyle()).accessibilityIdentifier("navigation.chats")
-            }
-            if recents.isEmpty { Text("Your chats appear here.").font(RMType.detail).foregroundStyle(RMPalette.secondary).padding(.vertical, RMLayout.elementGap) }
-            ForEach(recents) { chat in
-                let current = selection == .chat && chat.id == currentRecentID
-                Button { openRecent(chat.id) } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(chat.title).font(RMType.body).lineLimit(1)
-                        if !chat.detail.isEmpty { Text(chat.detail).font(RMType.detail).foregroundStyle(RMPalette.secondary).lineLimit(1) }
-                    }
+            }.padding(.horizontal, RMLayout.rowGap)
+            if recents.isEmpty {
+                Text("Your chats appear here.", bundle: .module).font(RMType.detail).foregroundStyle(RMPalette.secondary)
                     .padding(.horizontal, RMLayout.rowGap).padding(.vertical, RMLayout.elementGap)
-                    .frame(maxWidth: .infinity, minHeight: RMLayout.controlLarge, alignment: .leading)
-                    .background(current ? RMPalette.surface : .clear, in: RoundedRectangle(cornerRadius: RMLayout.rowCorner, style: .continuous))
-                    .contentShape(Rectangle())
-                }.buttonStyle(RMPressButtonStyle()).accessibilityAddTraits(current ? .isSelected : []).accessibilityIdentifier("navigation.recent.\(chat.id)")
-                    .padding(.horizontal, -RMLayout.rowGap)
+            }
+            ForEach(recents) { chat in
+                RMDrawerRecentRow(chat: chat, selected: selection == .chat && chat.id == currentRecentID) { openRecent(chat.id) }
             }
         }
     }
     private var footer: some View {
         (typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: RMLayout.elementGap)) : AnyLayout(HStackLayout(spacing: RMLayout.elementGap))) {
-            RMGlassIconButton("magnifyingglass", label: "Search chats") { go(.chats) }
+            RMGlassIconButton("magnifyingglass", label: String(localized:"Search chats",bundle:.module)) { go(.chats) }
             if !typeSize.isAccessibilitySize { Spacer(minLength: 0) }
-            Button(action: newChat) { Label("New chat", systemImage: "square.and.pencil").font(.body.weight(.semibold)).lineLimit(1) }
+            Button(action: newChat) { Label { Text("New chat", bundle:.module) } icon: { Image(systemName:"square.and.pencil") }.font(.body.weight(.semibold)).lineLimit(1) }
                 .rmProminentButton().accessibilityIdentifier("navigation.drawerNewChat")
         }.padding(.top, RMLayout.elementGap)
+    }
+}
+
+private struct RMDrawerRecentRow: View {
+    let chat: RMRecentChat
+    let selected: Bool
+    let action: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: RMLayout.unit) {
+                Text(chat.title).font(RMType.body).foregroundStyle(RMPalette.text)
+                    .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+                if !chat.detail.isEmpty {
+                    Text(chat.detail).font(RMType.detail).foregroundStyle(RMPalette.secondary)
+                        .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                }
+            }
+            .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, RMLayout.rowGap).padding(.vertical, RMLayout.elementGap)
+            .frame(minHeight: RMLayout.controlLarge)
+            .background(selected ? RMPalette.surface : .clear, in: RoundedRectangle(cornerRadius: RMLayout.rowCorner, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: RMLayout.rowCorner, style: .continuous))
+        }
+        .buttonStyle(RMPressButtonStyle())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityIdentifier("navigation.recent.\(chat.id)")
     }
 }
 
@@ -311,3 +436,129 @@ public struct RMGlassIconButton: View {
         .rmIconButton().accessibilityLabel(label)
     }
 }
+
+private struct RMDuoWorkbench: View {
+    @Binding private var selection: RMWorkspace
+    @State private var visited: Set<RMWorkspace> = [.chats,.chat]
+    @State private var columns: NavigationSplitViewVisibility = .all
+    @State private var navigationFocusRevision = 0
+    @State private var compactColumn: NavigationSplitViewColumn = .detail
+    private let recents: [RMRecentChat]; private let currentRecentID: String?
+    private let openRecent: (String) -> Void
+    private let content: (RMWorkspace) -> AnyView
+    private let settings: () -> Void; private let newChat: () -> Void
+    private let actions: (RMWorkspace) -> AnyView?
+    init(selection: Binding<RMWorkspace>, recents: [RMRecentChat] = [], currentRecentID: String? = nil,
+                openRecent: @escaping (String) -> Void = { _ in }, settings: @escaping () -> Void,
+                newChat: @escaping () -> Void,
+                actions: @escaping (RMWorkspace) -> AnyView? = { _ in nil },
+                content: @escaping (RMWorkspace) -> AnyView) {
+        self.actions = actions; _selection = selection
+        self.recents = recents; self.currentRecentID = currentRecentID; self.openRecent = openRecent
+        self.settings = settings; self.newChat = newChat; self.content = content
+    }
+    var body: some View {
+        NavigationSplitView(columnVisibility:$columns,preferredCompactColumn:$compactColumn) {
+            RMDrawer(selection:selection,recents:recents,currentRecentID:currentRecentID,
+                     go:{ page in visited.insert(page); selection = page; compactColumn = .detail },
+                     openRecent:{ id in openRecent(id); compactColumn = .detail },
+                     settings:settings,newChat:{ newChat(); compactColumn = .detail })
+        } detail: {
+            NavigationStack {
+                RMWorkspacePages(selection:selection,visited:visited,content:content)
+                    .environment(\.rmNavigationFocusRevision,navigationFocusRevision)
+                    .background { RMPageBackground() }
+                    .navigationTitle(Text(verbatim: ""))
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        #if !targetEnvironment(macCatalyst)
+                        if #available(iOS 27.1, *) {
+                            ToolbarItem(placement:.topBarTrailing) { actions(selection) }.visibilityPriority(.low)
+                            ToolbarItem(placement:.topBarPinnedTrailing) { composeButton }.visibilityPriority(.high)
+                        } else {
+                            standardToolbar
+                        }
+                        #else
+                        standardToolbar
+                        #endif
+                    }
+            }
+        }
+        .navigationSplitViewStyle(.balanced)
+        .onChange(of:selection,initial:true) { _,value in visited.insert(value); compactColumn = .detail }
+        .onChange(of:compactColumn) { _,value in if value == .sidebar { navigationFocusRevision &+= 1 } }
+        .onChange(of:columns) { _,value in if value != .detailOnly { navigationFocusRevision &+= 1 } }
+    }
+    @ToolbarContentBuilder private var standardToolbar: some ToolbarContent {
+        ToolbarItem(placement:.topBarTrailing) { actions(selection) }
+        ToolbarItem(placement:.topBarTrailing) { composeButton }
+    }
+    private var composeButton: some View {
+        Button(action:newChat) {
+            Label { Text("New chat",bundle:.module) } icon: { Image(systemName:"square.and.pencil") }
+        }.accessibilityIdentifier("navigation.newChat")
+    }
+}
+
+private struct RMWorkspacePages: View {
+    let selection: RMWorkspace; let visited: Set<RMWorkspace>
+    let content: (RMWorkspace) -> AnyView
+    var body: some View {
+        GeometryReader { viewport in
+            ZStack {
+                ForEach(RMWorkspace.allCases.filter { visited.contains($0) }) { page in
+                    Group {
+                        if page == .chat {
+                            if selection == page { content(page).environment(\.rmWorkspaceVisible,true) }
+                        } else {
+                            RMMountedWorkspace(content:content(page),visible:selection == page,interactive:true)
+                        }
+                    }
+                    .opacity(selection == page ? 1 : 0)
+                    .allowsHitTesting(selection == page)
+                    .accessibilityHidden(selection != page)
+                    .zIndex(selection == page ? 1 : 0)
+                }
+            }.frame(width:viewport.size.width,height:viewport.size.height).clipped()
+        }.frame(maxWidth:.infinity,maxHeight:.infinity)
+    }
+}
+
+
+/// Keeps precise, non-scrolling controls on one side of an active vertical fold.
+/// Region coordinates belong to this container and already follow layout direction.
+public struct RMFoldSafeControls<Content: View>: View {
+    @Environment(\.rmUsesAdaptiveBars) private var adaptive
+    private let content: Content
+    public init(@ViewBuilder content: () -> Content) { self.content = content() }
+    public var body: some View {
+        #if !targetEnvironment(macCatalyst)
+        if #available(iOS 27.1, *), adaptive {
+            RMReservedControls(content:content)
+        } else { content }
+        #else
+        content
+        #endif
+    }
+}
+#if !targetEnvironment(macCatalyst)
+@available(iOS 27.1, *)
+private struct RMReservedControls<Content: View>: View {
+    let content: Content
+    @State private var insets = EdgeInsets()
+    var body: some View {
+        content.padding(insets).frame(maxWidth:.infinity)
+            .onGeometryChange(for:EdgeInsets.self) { geometry in
+                let bounds = CGRect(origin:.zero,size:geometry.size)
+                guard let division = geometry.reservedRegions(kind:.division).first(where: {
+                    $0.isActive && $0.frame.height > $0.frame.width && $0.frame.intersects(bounds)
+                }) else { return EdgeInsets() }
+                let fold = division.frame.intersection(bounds)
+                if geometry.size.width - fold.maxX >= fold.minX {
+                    return EdgeInsets(top:0,leading:fold.maxX,bottom:0,trailing:0)
+                }
+                return EdgeInsets(top:0,leading:0,bottom:0,trailing:geometry.size.width - fold.minX)
+            } action: { insets = $0 }
+    }
+}
+#endif

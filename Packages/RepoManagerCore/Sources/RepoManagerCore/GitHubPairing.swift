@@ -31,13 +31,13 @@ public enum GitHubPairingError: String, Error, LocalizedError, Sendable {
 
     public var errorDescription: String? {
         switch self {
-        case .configurationUnavailable: "GitHub sign-in is unavailable in this build. Update Repo Manager or use a fine-grained token."
-        case .deviceFlowDisabled: "GitHub sign-in is temporarily unavailable. Use a fine-grained token or try again after the app is updated."
-        case .denied: "GitHub sign-in was declined. You can try again when you're ready."
-        case .expired: "Your GitHub sign-in code expired. Start again to get a new code."
-        case .invalidResponse: "GitHub returned an invalid sign-in response. Please try again."
-        case .rejected: "GitHub could not complete sign-in. Please try again."
-        case .browserUnavailable: "The browser could not open. Try Open Safari again, or open github.com/login/device and enter your code."
+        case .configurationUnavailable: String(localized:"GitHub sign-in is unavailable in this build. Update Repo Manager or use a fine-grained token.",bundle:.module)
+        case .deviceFlowDisabled: String(localized:"GitHub sign-in is temporarily unavailable. Use a fine-grained token or try again after the app is updated.",bundle:.module)
+        case .denied: String(localized:"GitHub sign-in was declined. You can try again when you're ready.",bundle:.module)
+        case .expired: String(localized:"Your GitHub sign-in code expired. Start again to get a new code.",bundle:.module)
+        case .invalidResponse: String(localized:"GitHub returned an invalid sign-in response. Please try again.",bundle:.module)
+        case .rejected: String(localized:"GitHub could not complete sign-in. Please try again.",bundle:.module)
+        case .browserUnavailable: String(localized:"The browser could not open. Try Open Safari again, or open github.com/login/device and enter your code.",bundle:.module)
         }
     }
 

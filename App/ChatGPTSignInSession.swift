@@ -113,7 +113,7 @@ enum AppChatGPTConfiguration {
         if busy,(attempt == nil || completing) {
             let pending = task
             cancel(clearError:false)
-            error = "Sign-in was interrupted. Continue with ChatGPT to reconnect."
+            error = String(localized:"Sign-in was interrupted. Continue with ChatGPT to reconnect.")
             await pending?.value
         }
     }

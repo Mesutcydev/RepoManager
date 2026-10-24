@@ -42,7 +42,7 @@ struct AppleProviderClient: ProviderClient {
     func catalog() async -> [ModelMetadata] {
         var local = ModelMetadata(id:Self.systemID,contextTokens:4096)
         local.reasoning = .init(kind:.promptGuidance,canDisable:true)
-        local.availability = SystemLanguageModel.default.isAvailable ? nil : "Enable Apple Intelligence on a supported device; system assets must be ready."
+        local.availability = SystemLanguageModel.default.isAvailable ? nil : String(localized:"Enable Apple Intelligence on a supported device; system assets must be ready.")
         #if RM_APPLE_PCC
         if #available(iOS 27,macOS 27,*) {
             if SystemLanguageModel.default.capabilities.contains(.reasoning) { local.reasoning = .init(kind:.apple) }
@@ -51,12 +51,12 @@ struct AppleProviderClient: ProviderClient {
         #endif
         var cloud = ModelMetadata(id:Self.cloudID)
         cloud.reasoning = .init(kind:.apple)
-        cloud.availability = "Private Cloud Compute requires OS 27 and a provisioning profile granting the capability to Repo Manager."
+        cloud.availability = String(localized:"Private Cloud Compute requires OS 27 and a provisioning profile granting the capability to Repo Manager.")
         #if RM_APPLE_PCC
         if #available(iOS 27,macOS 27,*), AppleCapability.isProvisioned {
             let model = PrivateCloudComputeLanguageModel()
-            if !model.isAvailable { cloud.availability = "Private Cloud Compute is not ready on this device." }
-            else if model.quotaUsage.isLimitReached { cloud.availability = "Apple's current usage limit has been reached." }
+            if !model.isAvailable { cloud.availability = String(localized:"Private Cloud Compute is not ready on this device.") }
+            else if model.quotaUsage.isLimitReached { cloud.availability = String(localized:"Apple's current usage limit has been reached.") }
             else { cloud.availability = nil }
             cloud.contextTokens = try? await model.contextSize
         }

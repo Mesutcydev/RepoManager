@@ -54,12 +54,14 @@ public struct ChatGPTProviderClient: ProviderClient {
                             throw ChatGPTServiceError(status: status ?? 200, body: type == "response.failed" ? root["response"] : root, requestID: requestID)
                         }
                         if type == "response.incomplete" { throw RMError.upstream }
-                        if root["item"]["type"].string == "function_call", let namespace = root["item"]["namespace"].string,
-                           namespace != "repo_manager" { throw RMError.upstream }
+                        for item in [root["item"]] + (root["response"]["output"].array ?? []) {
+                            if item["type"].string == "function_call", let namespace = item["namespace"].string,
+                               namespace != "repo_manager" { throw RMError.upstream }
+                        }
                         if type == "response.completed" { completed = true }
                         return try decoder.decode(frame)
                     }
-                    for try await event in transport.streamResponse(request, limit: 8 * 1024 * 1024) {
+                    responseStream: for try await event in transport.streamResponse(request, limit: 8 * 1024 * 1024) {
                         try Task.checkCancellation()
                         switch event {
                         case .response(let code, let headers):
@@ -71,13 +73,26 @@ public struct ChatGPTProviderClient: ProviderClient {
                                 guard failureBody.count + bytes.count <= 256 * 1024 else { throw RMError.tooLarge }
                                 failureBody.append(bytes)
                             } else {
-                                for frame in try parser.feed(bytes) { for value in try events(frame) { try StreamDelivery.yield(value, to: output) } }
+                                var packet: [ChatEvent] = []
+                                for frame in try parser.feed(bytes) {
+                                    packet += try events(frame)
+                                    if completed { break }
+                                }
+                                for value in StreamDelivery.coalesced(packet) { try await StreamDelivery.send(value, to: output) }
+                                // response.completed is the protocol boundary. Do
+                                // not turn a later socket close/reset into a failed
+                                // answer, or leave a completed turn waiting on EOF.
+                                if completed { break responseStream }
                             }
                         }
                     }
                     guard let status else { throw RMError.connection }
                     if status != 200 { throw ChatGPTServiceError(status: status, body: (try? JSON.parse(failureBody)) ?? .null, requestID: requestID) }
-                    for frame in try parser.feed(Data(), final: true) { for value in try events(frame) { try StreamDelivery.yield(value, to: output) } }
+                    if !completed {
+                        var packet: [ChatEvent] = []
+                        for frame in try parser.feed(Data(), final: true) { packet += try events(frame); if completed { break } }
+                        for value in StreamDelivery.coalesced(packet) { try await StreamDelivery.send(value, to: output) }
+                    }
                     guard completed else { throw RMError.connection }
                     output.finish()
                 } catch { output.finish(throwing: ProviderFailure.safe(error)) }
